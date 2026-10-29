@@ -10,7 +10,6 @@
 /* ---- settings: the only lines to change ---- */
 window.PB_CONFIG = {
   api: "https://vbfspyruvaoqmhuutphl.supabase.co/functions/v1/progress-api",
-  key: "sb_publishable_X6AsZvhKdglY2PBYvyb-aw_1vnfYbe3",   // public key, safe to publish
   site: new URLSearchParams(location.search).get("site") || "palestine",
   pollSeconds: 30
 };
@@ -158,7 +157,21 @@ table.t input[type=number]{width:72px;min-height:30px;padding:3px 6px;text-align
 table.t.wt th{white-space:normal;max-width:120px;text-align:center;vertical-align:bottom}
 table.t.wt td{text-align:center}
 table.t.wt td:first-child{white-space:nowrap;text-align:left}
-#crew-body{display:grid;gap:12px}
+.crew-body{display:grid;gap:12px}
+/* docked "My crew" panel (wide screens, like the Surface mockup) */
+#dock{position:fixed;right:0;top:var(--hdr,96px);bottom:0;width:390px;background:var(--panel);border-left:1px solid var(--line);overflow:auto;z-index:18;padding:12px 14px calc(16px + env(safe-area-inset-bottom,0px));display:grid;gap:10px;align-content:start}
+#dock h2{font-size:20px}
+#dock .crewgrid{grid-template-columns:1fr}
+#dock .kpi .v{font-size:22px}
+#dock .card{padding:8px 10px}
+body.docked #view-board, body.docked #boardbar{margin-right:390px}
+body.docked .sheet{right:402px}
+body.docked:not(.alltotals) #summary .stat:not(.keep){display:none}
+#summary .more{display:none;align-items:center;justify-content:center;border:1px dashed var(--line);border-radius:6px;background:none;color:var(--muted);font:500 13px var(--f-body);cursor:pointer;min-height:44px}
+body.docked #summary .more{display:flex}
+.hc{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:22px;padding:0 7px;border-radius:999px;background:var(--accent);color:var(--panel);font:600 12px var(--f-body);flex:none}
+.hc.g{background:color-mix(in srgb,var(--accent) 55%,var(--panel))}
+@media (max-width:1099px){#dock{display:none!important} body.docked #view-board, body.docked #boardbar{margin-right:0} #dockbtn{display:none!important}}
 /* crew screen */
 .crewgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
 @media (max-width:820px){.crewgrid{grid-template-columns:1fr}}
@@ -200,6 +213,7 @@ table.t.wt td:first-child{white-space:nowrap;text-align:left}
       <h1 id="title">Progress Board</h1>
       <span class="status" id="status">Loading…</span>
       <div class="right">
+        <button class="btn sm" id="dockbtn" type="button" hidden aria-pressed="false" title="Show your crew beside the board">My crew panel</button>
         <button class="btn sm" id="catchon" type="button" hidden title="Enter work that was finished before the tracker was in use">Catch-up mode</button>
         <span class="status" id="who"></span>
         <button class="btn sm" id="signin" type="button">Sign in</button>
@@ -226,6 +240,7 @@ table.t.wt td:first-child{white-space:nowrap;text-align:left}
   </div>
 </div>
 
+<aside id="dock" hidden aria-label="My crew"></aside>
 <main>
   <div class="wrap" id="view-board">
     <div class="summary" id="summary"></div>
@@ -264,7 +279,7 @@ async function api(action, body = {}, quiet){
   if (auth){ payload.pass = auth.pass; payload.by = auth.name; }
   let r;
   try {
-    r = await fetch(CFG.api, { method: "POST", headers: { "Content-Type": "application/json", apikey: CFG.key, Authorization: "Bearer " + CFG.key }, body: JSON.stringify(payload) });
+    r = await fetch(CFG.api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   } catch(e){ throw Object.assign(new Error("No connection. Check signal and try again."), { status: 0 }); }
   let j = {}; try { j = await r.json(); } catch(e){}
   if (!r.ok){
@@ -330,7 +345,7 @@ function applyStatic(d){
 }
 
 /* ---------- board building ---------- */
-const SQ = new Map(); const CARDS = [], AREAS = [];
+const SQ = new Map(); const CARDS = [], AREAS = []; const ROWS = [];
 function reg(raw, where){
   const rid = Number(String(raw.k).slice(1)); const it = ITEM.get(rid);
   if (!it) return null;
@@ -373,6 +388,8 @@ function aisleCard(ph, maxBay, where){
     const ex = el("div", "extra");
     for (const g of r.extra){ const it = reg(g, r.name.replace(/ \(Bay [^)]*\)/, "")); if (!it) continue; ids.push(it.row_id); ex.append(square(it, "inline", g.t)); }
     nm.addEventListener("click", () => rowBulk(nm.textContent, rowIds));
+    const rowAreas = [...new Set(rowIds.map(r => ITEM.get(r).area))];
+    ROWS.push({ ex, areas: rowAreas });
     row.append(nm, tr, ex); bd.append(row);
   }
   card._ids = ids; card._pct = pct;
@@ -437,7 +454,7 @@ function area(title, nodes, cards){
   $("areas").append(wrap);
 }
 function buildBoard(){
-  const B = S.layout; $("areas").textContent = ""; SQ.clear(); CARDS.length = 0; AREAS.length = 0; ITEMS_BY_KEY.clear();
+  const B = S.layout; $("areas").textContent = ""; SQ.clear(); CARDS.length = 0; AREAS.length = 0; ROWS.length = 0; ITEMS_BY_KEY.clear();
   const mb = list => Math.max(...list.flatMap(ph => ph.rows.flatMap(r => r.items.map(i => i.b ? i.b[1] : 0))));
   if (B.aisles?.length){ const ac = B.aisles.map(ph => aisleCard(ph, mb(B.aisles))); area("Product & bot aisles", ac, ac); }
   if (B.tote?.length){ const tc = B.tote.map(ph => aisleCard(ph, mb(B.tote))); area("Tote walls", tc, tc); }
@@ -545,6 +562,7 @@ function summary(){
     const num = el("span", "num", fmtPct(p)); if (sub) num.append(el("small", null, sub));
     const bar = el("span", "bar"); const f = el("span"); f.style.width = (p || 0) + "%"; bar.append(f);
     b.append(lab, num, bar); b.addEventListener("click", () => { if (tab !== "progress") setTab("progress"); setLayer(key); }); box.append(b);
+    if (key === "all" || key === "qc" || key === layer) b.classList.add("keep");
   };
   let bt = 0, bg = 0; for (const rid of all){ const it = ITEM.get(rid); bt += it.bays || 1; bg += (it.bays || 1) * pctOf(it); }
   add("all", "Install (weighted by bays)", "var(--work)", bt ? bg / bt * 100 : 0);
@@ -556,6 +574,8 @@ function summary(){
     if (!tot) continue;
     add(t, TASK[t].name, color(t), got / tot * 100, `${got}/${tot}`);
   }
+  const more = el("button", "more", document.body.classList.contains("alltotals") ? "Hide task totals ▴" : "Show all task totals ▾"); more.type = "button";
+  more.addEventListener("click", () => { document.body.classList.toggle("alltotals"); summary(); }); box.append(more);
   for (const c of CARDS) c._pct.textContent = fmtPct(groupPct(c._ids));
   for (const a of AREAS) a.pct.textContent = fmtPct(groupPct(a.cards.flatMap(c => c._ids))) + (layer === "all" ? " installed" : layer === "qc" ? " QC passed" : " " + (TASK[layer]?.name || "").toLowerCase());
 }
@@ -779,7 +799,7 @@ function renderWho(){
   $("tab-settings").hidden = !isAdmin();
   if (tab === "settings" && !isAdmin()) setTab("progress");
   setCatch(catchUp);
-  if (S) { hint(); if (selected) renderSheet(); }
+  if (S) { hint(); if (selected) renderSheet(); if (tab === "progress" || tab === "plan") renderDock(); }
 }
 function openSignIn(){
   openModal(m => {
@@ -816,6 +836,7 @@ function setTab(t){
   if (t === "crew") renderCrew();
   if (t === "report") renderReport();
   if (t === "settings") renderSettings();
+  if (boardTab) renderDock(); else { document.body.classList.remove("docked"); $("dock").hidden = true; $("dockbtn").hidden = true; }
   store.set("tab", t);
 }
 for (const b of document.querySelectorAll(".tab")) b.addEventListener("click", () => setTab(b.dataset.tab));
@@ -823,6 +844,42 @@ for (const b of document.querySelectorAll(".tab")) b.addEventListener("click", (
 /* ================= CREW HOURS ================= */
 const BUCKETS = ["Material handling", "Cleanup / housekeeping", "Safety / meetings", "Travel / waiting", "Other"];
 let C = { crewId: store.get("crew") || null, date: null, day: null, draft: {}, at: "" };
+let CBODY = null; const CB = () => CBODY || document.createElement("div");
+let dockOn = store.get("dock") !== false;   // remembered per device; only shows on wide screens
+const wide = () => window.matchMedia("(min-width:1100px)").matches;
+function dockActive(){ return dockOn && isCrew() && wide() && (tab === "progress" || tab === "plan") && !!S; }
+function renderDock(){
+  const d = $("dock"); const act = dockActive();
+  document.body.classList.toggle("docked", act); d.hidden = !act;
+  $("dockbtn").hidden = !(isCrew() && (tab === "progress" || tab === "plan"));
+  $("dockbtn").setAttribute("aria-pressed", String(act)); $("dockbtn").textContent = act ? "Hide crew panel" : "My crew panel";
+  if (!act){ paintBadges(); return; }
+  d.textContent = "";
+  if (!C.crewId || !S.crews.find(c => c.id === C.crewId)) C.crewId = S.crews[0]?.id || null;
+  C.date = S.site.today;
+  const crew = S.crews.find(c => c.id === C.crewId);
+  d.append(el("h2", null, "My crew" + (crew ? " · " + crew.name : "")));
+  if (S.crews.length > 1){ const cs = el("div", "layers"); for (const c of S.crews){ const b = el("button", "chip", c.name); b.setAttribute("aria-pressed", String(c.id === C.crewId)); b.addEventListener("click", () => { C.crewId = c.id; store.set("crew", c.id); renderDock(); }); cs.append(b); } d.append(cs); }
+  const body = el("div", "crew-body"); d.append(body); CBODY = body;
+  loadCrewDay();
+}
+$("dockbtn").addEventListener("click", () => { dockOn = !dockActive(); store.set("dock", dockOn); renderDock(); fixHeader(); });
+window.addEventListener("resize", () => { if (S) renderDock(); });
+// headcount badges on board rows ("people there now")
+function paintBadges(){
+  for (const r of ROWS) r.ex.querySelectorAll(".hc").forEach(x => x.remove());
+  if (!C.day || C.date !== S.site.today || !isCrew()) return;
+  const { cur, grp } = currentCounts(); const n = {}, g = {};
+  for (const [k, v] of Object.entries(cur)){ if (!v) continue; if (k.startsWith("grp:")) for (const a of grp[k] || []) g[a] = (g[a] || 0) + v; else if (!k.startsWith("x:")) n[k] = (n[k] || 0) + v; }
+  const seen = new Set();
+  for (const r of ROWS){
+    for (const a of r.areas){
+      if (seen.has(a)) continue;
+      if (n[a]){ const b = el("span", "hc", String(n[a])); b.title = `${n[a]} ${n[a] === 1 ? "person" : "people"} in ${a} now`; r.ex.prepend(b); seen.add(a); }
+      else if (g[a]){ const b = el("span", "hc g", "g"); b.title = `Part of a group with ${g[a]} people`; r.ex.prepend(b); seen.add(a); }
+    }
+  }
+}
 function areaList(){
   const by = {}; for (const it of ITEM.values()){ (by[it.phase || "Other"] ||= new Set()).add(it.area); }
   return Object.entries(by).map(([ph, s]) => [ph, [...s].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))]);
@@ -831,9 +888,9 @@ function keyLabel(k, d){ if (k.startsWith("grp:")) return "Group: " + k.slice(4)
 function currentCounts(){ const cur = {}; const grp = {}; for (const e of C.day?.events || []){ cur[e.area_key] = e.count; if (e.group_areas) grp[e.area_key] = e.group_areas; } return { cur, grp }; }
 async function loadCrewDay(){
   if (!C.crewId) return;
-  $("crew-body").textContent = ""; $("crew-body").append(el("div", "skeleton", "Loading…"));
-  try { C.day = await api("crew_day", { crew_id: C.crewId, date: C.date }); C.draft = {}; drawCrew(); }
-  catch(e){ $("crew-body").textContent = ""; $("crew-body").append(el("p", "status err", e.message)); }
+  CB().textContent = ""; CB().append(el("div", "skeleton", "Loading…"));
+  try { C.day = await api("crew_day", { crew_id: C.crewId, date: C.date }); C.draft = {}; drawCrew(); paintBadges(); }
+  catch(e){ CB().textContent = ""; CB().append(el("p", "status err", e.message)); }
 }
 function renderCrew(){
   const v = $("view-crew"); v.textContent = "";
@@ -843,11 +900,12 @@ function renderCrew(){
   const head = el("div", "row"); head.append(el("h2", null, "Crew hours"));
   const crews = el("div", "layers"); for (const c of S.crews){ const b = el("button", "chip", c.name); b.setAttribute("aria-pressed", String(c.id === C.crewId)); b.addEventListener("click", () => { C.crewId = c.id; store.set("crew", c.id); renderCrew(); }); crews.append(b); }
   const d = el("input"); d.type = "date"; d.value = C.date; d.max = S.site.today; d.addEventListener("change", () => { C.date = d.value; loadCrewDay(); });
-  head.append(crews, d); v.append(head, el("div", null)); v.lastChild.id = "crew-body";
+  const body = el("div", "crew-body"); CBODY = body;
+  head.append(crews, d); v.append(head, body);
   loadCrewDay();
 }
 function drawCrew(){
-  const body = $("crew-body"); body.textContent = "";
+  const body = CB(); body.textContent = "";
   const D = C.day; const closed = D.day && D.day.status === "closed"; const isToday = C.date === S.site.today;
   const { cur, grp } = currentCounts();
   const on = D.people.filter(p => p.on).length;
@@ -1160,6 +1218,9 @@ async function reload(){
 async function poll(){
   if (document.hidden || !S || (tab !== "progress" && tab !== "plan")) return;
   if (pending.size) return;
+  if (dockActive() && C.crewId && !Object.keys(C.draft).length && $("modal").hidden && !CB().contains(document.activeElement)){
+    api("crew_day", { crew_id: C.crewId, date: C.date }).then(x => { if (!Object.keys(C.draft).length){ C.day = x; drawCrew(); paintBadges(); } }).catch(() => {});
+  }
   try { const d = await api("poll"); if (pending.size) return; applyLive(d); paintAll(); if (selected) renderSheet(); setStatus("Live · updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })); }
   catch(e){ setStatus("Offline · " + e.message, true); }
 }
