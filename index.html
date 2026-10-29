@@ -1,0 +1,1181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Progress Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script>
+/* ---- settings: the only lines to change ---- */
+window.PB_CONFIG = {
+  api: "https://vbfspyruvaoqmhuutphl.supabase.co/functions/v1/progress-api",
+  key: "sb_publishable_X6AsZvhKdglY2PBYvyb-aw_1vnfYbe3",   // public key, safe to publish
+  site: new URLSearchParams(location.search).get("site") || "palestine",
+  pollSeconds: 30
+};
+</script>
+<style>
+:root{
+  --bg:#eef1ef; --panel:#fbfcfb; --ink:#18242a; --muted:#5d6b70; --line:#cfd6d4; --empty:#e3e8e6; --hatch:#d6dcda;
+  --accent:#1f5f86; --work:#3f7fa6; --ok:#2f8a57; --bad:#c2412d; --warn:#c98a12; --plan0:#7a4fd0; --plan1:#b07ad8; --plan2:#c9a6e6; --plan3:#e0c9f2; --late:#c2412d; --catch:#8a6d1f;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12181b; --panel:#192125; --ink:#e4ebe9; --muted:#93a2a6; --line:#2c383d; --empty:#243035; --hatch:#2b363b;
+  --accent:#6fb1d8; --work:#5f9fc6; --ok:#55b880; --bad:#ec6a55; --warn:#e3b04a; --plan0:#a688ee; --plan1:#c3a0ea; --plan2:#8e78b0; --plan3:#6b5a85; --late:#ec6a55; --catch:#d9b860; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12181b; --panel:#192125; --ink:#e4ebe9; --muted:#93a2a6; --line:#2c383d; --empty:#243035; --hatch:#2b363b;
+  --accent:#6fb1d8; --work:#5f9fc6; --ok:#55b880; --bad:#ec6a55; --warn:#e3b04a; --plan0:#a688ee; --plan1:#c3a0ea; --plan2:#8e78b0; --plan3:#6b5a85; --late:#ec6a55; --catch:#d9b860; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45;margin:0}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1500px;margin:0 auto}
+main .wrap>*,#areas>*,.area-body>*,.card,.zone{min-width:0}
+header.top{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top,0px)}
+header.top .wrap{padding-block:10px 8px;display:grid;gap:8px}
+.titlebar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px}
+h1{font-family:var(--f-display);font-weight:700;font-size:26px;letter-spacing:.01em;margin:0;line-height:1}
+.status{font-size:12px;color:var(--muted);font-family:var(--f-mono)}
+.status.err{color:var(--bad)}
+.right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:-9px;overflow-x:auto}
+.tab{border:0;background:none;color:var(--muted);font:600 14px var(--f-body);padding:8px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+.layers{display:flex;gap:6px;overflow-x:auto;padding:2px 0;scrollbar-width:thin}
+.chip{flex:none;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:6px 12px 6px 10px;font:500 13px var(--f-body);cursor:pointer;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;min-height:34px}
+.chip .dot{width:10px;height:10px;border-radius:3px;background:var(--c,var(--work))}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.modehint{font-size:12.5px;color:var(--muted)}
+.modehint b{color:var(--ink);font-weight:600}
+main .wrap{padding-block:16px 90px;display:grid;gap:20px}
+.summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;display:grid;gap:4px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.stat .lab{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.stat .lab i{width:9px;height:9px;border-radius:2px;background:var(--c)}
+.stat .num{font-family:var(--f-display);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+.stat .num small{font:400 12px var(--f-mono);color:var(--muted);margin-left:4px}
+.bar{height:4px;background:var(--empty);border-radius:2px;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--c,var(--work))}
+details.area>summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:12px;padding:4px 0 10px;border-bottom:2px solid var(--ink)}
+details.area>summary::-webkit-details-marker{display:none}
+h2{font-family:var(--f-display);font-size:22px;font-weight:700;margin:0;text-transform:uppercase;letter-spacing:.04em}
+.area-pct{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.area-body{display:grid;gap:12px;padding-top:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px 12px}
+.card h3{margin:0 0 8px;font-size:13px;font-weight:600;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.card h3 code{font-family:var(--f-mono);font-size:11.5px;font-weight:400;color:var(--muted)}
+.card h3 .pct{margin-left:auto;font-family:var(--f-mono);font-weight:400;font-size:12px;color:var(--muted)}
+.scroll{overflow-x:auto}
+.board{min-width:640px;display:grid;gap:4px}
+.arow{display:grid;grid-template-columns:140px 1fr 60px;gap:8px;align-items:center}
+.arow .nm{font-size:12px;font-family:var(--f-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:none;border:0;color:inherit;text-align:left;padding:0}
+.arow button.nm{cursor:pointer;text-decoration:underline dotted var(--muted);text-underline-offset:3px}
+.track{position:relative;height:28px}
+.axis .track{height:16px;border-bottom:1px solid var(--line)}
+.tick{position:absolute;bottom:0;font:10px var(--f-mono);color:var(--muted);transform:translateX(-50%);white-space:nowrap}
+.tick::after{content:"";position:absolute;left:50%;bottom:-1px;height:4px;border-left:1px solid var(--line)}
+.extra{display:flex;gap:4px}
+.sq{position:absolute;top:0;bottom:0;border:1px solid var(--line);border-radius:3px;background:var(--empty);padding:0;cursor:pointer;overflow:hidden;color:var(--ink)}
+.sq.inline{position:relative;display:block;height:28px;width:28px;flex:none}
+.sq .fill{position:absolute;left:0;right:0;bottom:0;height:0;background:var(--c,var(--work));transition:height .2s}
+.sq .tag{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:500 10px var(--f-mono);color:var(--muted);pointer-events:none}
+.sq.full .tag{color:#fff}
+.sq.qcpass{border-color:var(--ok)}
+.sq.qcpass::after,.sq.qcfail::after{content:"";position:absolute;right:2px;top:2px;width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 1.5px var(--panel)}
+.sq.qcfail{border-color:var(--bad);border-width:2px}
+.sq.qcfail::after{background:var(--bad)}
+.sq.mm::before{content:"";position:absolute;left:0;top:0;border-style:solid;border-width:9px 9px 0 0;border-color:var(--warn) transparent transparent transparent;z-index:1}
+.sq.tagged .tag::after{content:"T";position:absolute;left:2px;bottom:1px;font:600 9px var(--f-mono);color:var(--bad)}
+.sq.plan0{box-shadow:inset 0 0 0 2px var(--plan0)}
+.sq.plan1{box-shadow:inset 0 0 0 2px var(--plan1)}
+.sq.plan2{box-shadow:inset 0 0 0 2px var(--plan2)}
+.sq.plan3{box-shadow:inset 0 0 0 2px var(--plan3)}
+.sq.planlate{box-shadow:inset 0 0 0 2px var(--late)}
+.sq.planother{box-shadow:inset 0 0 0 2px var(--line)}
+.catchbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;background:color-mix(in srgb,var(--catch) 16%,var(--panel));border:1px solid var(--catch);border-radius:8px;padding:8px 12px;font-size:13px}
+.catchbar b{color:var(--catch)}
+.wk{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.wk .stat{border-left:5px solid var(--c)}
+table.t select{min-height:32px;padding:3px 6px;max-width:260px}
+.sq.na{background:repeating-linear-gradient(135deg,var(--empty) 0 3px,var(--hatch) 3px 6px);opacity:.55;cursor:default}
+.sq.sel{outline:2px solid var(--ink);outline-offset:1px;z-index:2}
+.sq.pending{opacity:.6}
+.sq.flash{animation:flash .5s}
+@keyframes flash{50%{transform:scale(1.15)}}
+.mx{display:grid;gap:4px;min-width:520px}
+.mx .h{font:600 12px var(--f-body);color:var(--muted);text-align:center;align-self:end}
+.mx .rl{font:12px var(--f-mono);white-space:nowrap;align-self:center}
+.mx .cell{height:30px}
+.mx .cell .sq{position:relative;width:100%;height:100%;display:block}
+.mx .blank{height:30px;border:1px dashed var(--line);border-radius:3px;opacity:.6}
+.mx .sep{grid-column:1/-1;border-top:1px solid var(--line);margin:3px 0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.tile-list{display:grid;gap:5px}
+.trow{display:grid;grid-template-columns:1fr 32px;gap:8px;align-items:center;font-size:12.5px}
+.trow .sq{position:relative;height:26px;width:32px;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--muted);align-items:center}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.legend i{display:inline-block;width:16px;height:14px;border-radius:3px;border:1px solid var(--line);background:var(--empty);position:relative;overflow:hidden}
+.note{font-size:12.5px;color:var(--muted);max-width:80ch;margin:0}
+/* panels / dialogs */
+.sheet{position:fixed;z-index:40;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));width:min(400px,calc(100vw - 24px));background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 36px rgba(0,0,0,.22);padding:14px 14px 12px;display:grid;gap:10px;max-height:min(84vh,640px);overflow:auto}
+.sheet h4{margin:0;font-size:15px;line-height:1.3;padding-right:30px}
+.sheet .meta{font:11.5px var(--f-mono);color:var(--muted)}
+.close{position:absolute;right:8px;top:8px;border:0;background:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;padding:4px 8px}
+.stg{display:grid;grid-template-columns:24px 1fr auto;gap:4px 8px;align-items:center;padding:7px 8px;border:1px solid var(--line);border-radius:6px;cursor:pointer;background:var(--bg)}
+.stg input{width:20px;height:20px;accent-color:var(--c);margin:0}
+.stg .w{font:11px var(--f-mono);color:var(--muted)}
+.stg .who{grid-column:2/4;font-size:11.5px;color:var(--muted)}
+.stg.done{border-color:var(--c)}
+.box{border:1px solid var(--line);border-radius:6px;padding:8px 10px;display:grid;gap:6px;font-size:13px}
+.box.bad{border-color:var(--bad)} .box.ok{border-color:var(--ok)}
+.btn{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:7px 12px;font:500 13px var(--f-body);cursor:pointer;min-height:36px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.primary{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.sm{min-height:30px;padding:3px 9px;font-size:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input[type=text],input[type=password],input[type=date],input[type=number],input[type=time],select,textarea{font:14px var(--f-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-height:36px}
+textarea{width:100%;min-height:54px}
+label.f{display:grid;gap:4px;font-size:12px;color:var(--muted)}
+.modal-back{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:45}
+.modal{position:fixed;z-index:46;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,calc(100vw - 24px));max-height:calc(100vh - 40px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px;box-shadow:0 16px 48px rgba(0,0,0,.3)}
+.modal.wide{width:min(860px,calc(100vw - 24px))}
+.modal h4{margin:0;font-size:17px;padding-right:30px}
+.toast{position:fixed;z-index:60;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--panel);padding:8px 10px 8px 14px;border-radius:8px;font-size:13px;display:flex;gap:12px;align-items:center;max-width:calc(100vw - 32px)}
+.toast button{background:none;border:1px solid currentColor;color:inherit;border-radius:5px;padding:4px 10px;font:inherit;cursor:pointer}
+table.t{border-collapse:collapse;font-size:13px;width:100%}
+table.t th,table.t td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:right;white-space:nowrap}
+table.t th:first-child,table.t td:first-child{text-align:left;white-space:normal}
+table.t thead th{font-weight:600;color:var(--muted);font-size:12px}
+table.t tfoot td{font-weight:600}
+table.t input[type=number]{width:72px;min-height:30px;padding:3px 6px;text-align:right}
+.num{font-variant-numeric:tabular-nums}
+table.t.wt th{white-space:normal;max-width:120px;text-align:center;vertical-align:bottom}
+table.t.wt td{text-align:center}
+table.t.wt td:first-child{white-space:nowrap;text-align:left}
+#crew-body{display:grid;gap:12px}
+/* crew screen */
+.crewgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:820px){.crewgrid{grid-template-columns:1fr}}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.kpi .v{font:600 26px var(--f-display);font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi .l{font-size:12px;color:var(--muted)}
+.kpi.bad .v{color:var(--bad)} .kpi.ok .v{color:var(--ok)}
+.place{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.place .nm{font-weight:500}
+.place .sub{font-size:12px;color:var(--muted)}
+.stepper{display:flex;align-items:center;gap:4px}
+.stepper button{width:40px;height:40px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 20px var(--f-body);cursor:pointer}
+.stepper output{min-width:34px;text-align:center;font:600 20px var(--f-display)}
+.stepper output.chg{color:var(--accent)}
+.people{display:flex;flex-wrap:wrap;gap:6px}
+.person{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+.person.on{border-color:var(--ok);color:var(--ok)}
+.timeline{font:12px var(--f-mono);color:var(--muted);display:grid;gap:2px;max-height:220px;overflow:auto}
+.pill{display:inline-block;font:600 11px var(--f-body);padding:2px 8px;border-radius:999px;border:1px solid currentColor}
+.pill.closed{color:var(--ok)} .pill.open{color:var(--warn)}
+.checklist{display:grid;gap:4px;max-height:50vh;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:6px}
+.checklist label{display:flex;gap:8px;align-items:center;font-size:13px;padding:3px 4px}
+.checklist .grp{font:600 11px var(--f-body);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:6px 4px 2px}
+.skeleton{padding:40px 0;color:var(--muted);text-align:center}
+@media (max-width:560px){
+  h1{font-size:22px}.arow{grid-template-columns:96px 1fr 60px}
+  .sheet{left:0;right:0;bottom:0;width:100%;border-radius:12px 12px 0 0;max-height:78vh;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+  .kpi .v{font-size:22px}
+}
+@media (prefers-reduced-motion:reduce){.sq .fill{transition:none}.sq.flash{animation:none}}
+@media print{header.top .layers,header.top .tabs,.right,.sheet,.toast{display:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="titlebar">
+      <h1 id="title">Progress Board</h1>
+      <span class="status" id="status">Loading…</span>
+      <div class="right">
+        <button class="btn sm" id="catchon" type="button" hidden title="Enter work that was finished before the tracker was in use">Catch-up mode</button>
+        <span class="status" id="who"></span>
+        <button class="btn sm" id="signin" type="button">Sign in</button>
+      </div>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="progress" aria-selected="true">Progress</button>
+      <button class="tab" role="tab" data-tab="plan" aria-selected="false">Lookahead</button>
+      <button class="tab" role="tab" data-tab="crew" aria-selected="false">Crew hours</button>
+      <button class="tab" role="tab" data-tab="report" aria-selected="false">Hours report</button>
+      <button class="tab" role="tab" data-tab="settings" aria-selected="false" hidden id="tab-settings">Settings</button>
+    </div>
+  </div>
+</header>
+<div class="wrap" id="boardbar" style="background:var(--panel);border-bottom:1px solid var(--line);padding-block:8px;position:sticky;top:var(--hdr,96px);z-index:19;display:grid;gap:6px">
+  <div class="layers" id="layers" role="toolbar" aria-label="Layer"></div>
+  <div class="modehint" id="modehint"></div>
+  <div class="catchbar" id="catchbar" hidden>
+    <b>Catch-up mode</b>
+    <span>Checks are recorded as done on</span>
+    <input type="date" id="catchdate" aria-label="Date the work was done">
+    <span class="note">and never count toward manhours or earned bays.</span>
+    <button class="btn sm" id="catchoff" type="button">Done catching up</button>
+  </div>
+</div>
+
+<main>
+  <div class="wrap" id="view-board">
+    <div class="summary" id="summary"></div>
+    <div class="legend" id="legend"></div>
+    <div id="areas" style="display:grid;gap:26px"><div class="skeleton">Loading the board…</div></div>
+  </div>
+  <div class="wrap" id="view-crew" hidden></div>
+  <div class="wrap" id="view-report" hidden></div>
+  <div class="wrap" id="view-settings" hidden></div>
+</main>
+
+<div class="sheet" id="sheet" hidden role="dialog" aria-labelledby="sheet-title">
+  <button class="close" id="sheet-close" aria-label="Close">×</button>
+  <h4 id="sheet-title"></h4>
+  <div class="meta" id="sheet-meta"></div>
+  <div id="sheet-body" style="display:grid;gap:8px"></div>
+</div>
+<div class="modal-back" id="modal-back" hidden></div>
+<div class="modal" id="modal" hidden role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast" hidden><span id="toast-msg"></span><button id="toast-undo" type="button">Undo</button></div>
+
+<script>
+"use strict";
+const CFG = window.PB_CONFIG;
+const $ = id => document.getElementById(id);
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+const store = {
+  get(k){ try { return JSON.parse(localStorage.getItem("pb:" + CFG.site + ":" + k)); } catch(e){ return null; } },
+  set(k, v){ try { localStorage.setItem("pb:" + CFG.site + ":" + k, JSON.stringify(v)); } catch(e){} },
+  del(k){ try { localStorage.removeItem("pb:" + CFG.site + ":" + k); } catch(e){} }
+};
+let auth = store.get("auth");   // {pass, name, role}
+
+async function api(action, body = {}, quiet){
+  const payload = { site: CFG.site, action, ...body };
+  if (auth){ payload.pass = auth.pass; payload.by = auth.name; }
+  let r;
+  try {
+    r = await fetch(CFG.api, { method: "POST", headers: { "Content-Type": "application/json", apikey: CFG.key, Authorization: "Bearer " + CFG.key }, body: JSON.stringify(payload) });
+  } catch(e){ throw Object.assign(new Error("No connection. Check signal and try again."), { status: 0 }); }
+  let j = {}; try { j = await r.json(); } catch(e){}
+  if (!r.ok){
+    if (r.status === 401 && auth && action !== "login"){ auth = null; store.del("auth"); renderWho(); }
+    throw Object.assign(new Error(j.error || ("Error " + r.status)), { status: r.status });
+  }
+  return j;
+}
+
+/* ---------- state ---------- */
+let S = null;                    // full state from server
+const ITEM = new Map();          // row_id -> item (+ where, n)
+const ITEMS_BY_KEY = new Map();  // "r12" -> item
+let TASK = {}, TASK_ORDER = [], W = {}, TYPE_TOTAL = {};
+let PROG = {};                   // row_id -> Set(task)
+let FLAGS = {};                  // row_id -> {note}
+let PLAN = {};                   // row_id -> {week_start, crew, tasks}
+let QC = {};
+let tab = "progress", layer = "all", planWeek = 0, selected = null;
+let catchUp = false, catchDate = store.get("catchdate") || "";
+const PLAN_WEEKS = 4;
+const pending = new Map();       // row_id -> count of in-flight writes
+
+const isCrew = () => !!(auth && auth.role);
+const isAdmin = () => !!(auth && auth.role === "admin");
+
+function tasksFor(it){ const w = W[it.area_type] || {}; return TASK_ORDER.filter(t => w[t] > 0); }
+function done(rid, t){ const s = PROG[rid]; return !!(s && s.has(t)); }
+function pctOf(it){ const w = W[it.area_type] || {}; const tot = TYPE_TOTAL[it.area_type] || 0; if (!tot) return 0; let g = 0; for (const t of PROG[it.row_id] || []) g += w[t] || 0; return Math.min(1, g / tot); }
+function qcOf(rid){ return QC[String(rid)] || null; }
+function color(t){ return `var(--s-${t})`; }
+
+function mondayOf(d){ const x = new Date(d); x.setHours(12,0,0,0); const dow = (x.getDay() + 6) % 7; x.setDate(x.getDate() - dow); return x; }
+function ymd(d){ return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); }
+function weekStart(offset){ const m = mondayOf(new Date()); m.setDate(m.getDate() + 7 * offset); return ymd(m); }
+function weekLabel(offset){ const m = mondayOf(new Date()); m.setDate(m.getDate() + 7 * offset); const s = m.toLocaleDateString([], {month:"short", day:"numeric"}); return offset === 0 ? "This week (" + s + ")" : offset === 1 ? "Next week (" + s + ")" : "Week of " + s; }
+function planClass(rid){
+  const p = PLAN[rid]; if (!p) return "";
+  for (let i = 0; i < PLAN_WEEKS; i++) if (p.week_start === weekStart(i)) return "plan" + i;
+  if (p.week_start < weekStart(0)) return pctOf(ITEM.get(Number(rid))) >= .9999 ? "" : "planlate";
+  return "planother";
+}
+
+/* ---------- applying server data ---------- */
+function applyLive(d){
+  PROG = {}; for (const [rid, s] of Object.entries(d.progress || {})) PROG[rid] = new Set(s ? s.split(" ") : []);
+  FLAGS = {}; for (const f of d.flags || []) FLAGS[f.row_id] = f;
+  PLAN = {}; for (const p of d.plan || []) PLAN[p.row_id] = p;
+  QC = d.qc || {};
+  if (d.qc_error) setStatus("Smartsheet QC data unavailable: " + d.qc_error, true);
+}
+function applyStatic(d){
+  TASK = {}; TASK_ORDER = [];
+  for (const t of d.tasks){ TASK[t.key] = t; TASK_ORDER.push(t.key); }
+  W = {}; TYPE_TOTAL = {};
+  for (const w of d.weights){ (W[w.area_type] ||= {})[w.task_key] = Number(w.weight); }
+  for (const k in W) TYPE_TOTAL[k] = Object.values(W[k]).reduce((a, b) => a + b, 0);
+  ITEM.clear(); for (const it of d.items) ITEM.set(it.row_id, { ...it });
+  const L = TASK_ORDER.map(s => `--s-${s}:hsl(${TASK[s].hue} 46% 42%)`).join(";");
+  const D = TASK_ORDER.map(s => `--s-${s}:hsl(${TASK[s].hue} 52% 63%)`).join(";");
+  let st = $("task-colors"); if (!st){ st = document.createElement("style"); st.id = "task-colors"; document.head.append(st); }
+  st.textContent = `:root{${L}}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${D}}}:root[data-theme="dark"]{${D}}`;
+}
+
+/* ---------- board building ---------- */
+const SQ = new Map(); const CARDS = [], AREAS = [];
+function reg(raw, where){
+  const rid = Number(String(raw.k).slice(1)); const it = ITEM.get(rid);
+  if (!it) return null;
+  it.where = where; it.n = raw.n; it.key = raw.k; ITEMS_BY_KEY.set(raw.k, it);
+  return it;
+}
+function square(it, extraCls, tagText){
+  const b = el("button", "sq" + (extraCls ? " " + extraCls : ""));
+  b.type = "button"; b.dataset.r = it.row_id;
+  b.setAttribute("aria-label", it.where + " – " + it.n);
+  b.append(el("span", "fill"));
+  b.append(el("span", "tag", tagText || ""));
+  b.addEventListener("click", () => onSquare(it));
+  SQ.set(it.row_id, b);
+  return b;
+}
+function aisleCard(ph, maxBay, where){
+  const card = el("div", "card");
+  const h = el("h3"); h.append(document.createTextNode(ph.name), el("code", null, ph.grid || ph.code)); const pct = el("span", "pct"); h.append(pct); card.append(h);
+  const sc = el("div", "scroll"); const bd = el("div", "board"); sc.append(bd); card.append(sc);
+  const maxB = ph.max || maxBay;
+  const ax = el("div", "arow axis"); ax.append(el("span", "nm", ph.ticks ? "Grid" : "Bay"));
+  const at = el("div", "track");
+  if (ph.ticks) for (const tk of ph.ticks){ const t = el("span", "tick", tk.label); t.style.left = (tk.at / maxB * 100) + "%"; if (tk.at === 0) t.style.transform = "none"; else if (tk.at === maxB) t.style.transform = "translateX(-100%)"; at.append(t); }
+  else for (let b = 1; b <= maxB; b++) if (b === 1 || b % 5 === 0 || b === maxB){ const t = el("span", "tick", b); t.style.left = ((b - .5) / maxB * 100) + "%"; at.append(t); }
+  ax.append(at, el("span")); bd.append(ax);
+  const ids = [];
+  for (const r of ph.rows){
+    const row = el("div", "arow");
+    const rowIds = [];
+    const nm = el("button", "nm", r.name.replace(/ \(Bay [^)]*\)/, "")); nm.type = "button"; nm.title = r.name + " — tap to mark the whole row in a task layer";
+    const tr = el("div", "track");
+    for (const i of r.items){
+      const it = reg(i, where ? where(ph, r) : r.name.replace(/ \(Bay [^)]*\)/, "")); if (!it) continue; ids.push(it.row_id); rowIds.push(it.row_id);
+      const b0 = i.b ? i.b[0] : 1, b1 = i.b ? i.b[1] : maxB;
+      const q = square(it, null, i.t || (i.b && b1 - b0 >= 1 ? (b0 + "–" + b1) : (i.b ? String(b0) : "")));
+      q.style.left = `calc(${(b0 - 1) / maxB * 100}% + 1px)`; q.style.width = `calc(${(b1 - b0 + 1) / maxB * 100}% - 2px)`;
+      tr.append(q);
+    }
+    const ex = el("div", "extra");
+    for (const g of r.extra){ const it = reg(g, r.name.replace(/ \(Bay [^)]*\)/, "")); if (!it) continue; ids.push(it.row_id); ex.append(square(it, "inline", g.t)); }
+    nm.addEventListener("click", () => rowBulk(nm.textContent, rowIds));
+    row.append(nm, tr, ex); bd.append(row);
+  }
+  card._ids = ids; card._pct = pct;
+  return card;
+}
+function levelsCard(zones){
+  const card = el("div", "card");
+  const h = el("h3"); h.append(document.createTextNode("Decking & ramps by level")); const pct = el("span", "pct"); h.append(pct); card.append(h);
+  const sc = el("div", "scroll"); const mx = el("div", "mx"); sc.append(mx); card.append(sc);
+  mx.style.gridTemplateColumns = `110px repeat(${zones.length}, minmax(64px,1fr))`;
+  mx.append(el("span")); zones.forEach(z => mx.append(el("span", "h", z.zone)));
+  const rows = [["L1","Decking L1"],["L2","Decking L2"],["L3","Decking L3"],["L4","Decking L4"],["L5","Decking L5"],["L6","Decking L6"],["L7","Decking L7"],["L8","Decking L8"],["L9","Decking L9"],"sep",["R1-3","Ramps L1–3"],["R4-6","Ramps L4–6"],["R7-9","Ramps L7–9"]];
+  const ids = [];
+  for (const r of rows){
+    if (r === "sep"){ mx.append(el("div", "sep")); continue; }
+    mx.append(el("span", "rl", r[1]));
+    for (const z of zones){
+      const raw = z.cells[r[0]];
+      const it = raw && reg(raw, z.zone === "Induction" ? "Induction / Transition" : "Transfer Deck " + z.zone);
+      if (!it){ const bl = el("div", "blank"); bl.title = "Not in this zone"; mx.append(bl); continue; }
+      ids.push(it.row_id); const cell = el("div", "cell"); cell.append(square(it, null, raw.t ? raw.t + " ramps" : "")); mx.append(cell);
+    }
+  }
+  card._ids = ids; card._pct = pct;
+  const note = el("p", "note", "Dashed cells are levels a zone doesn't have."); note.style.marginTop = "8px"; card.append(note);
+  return card;
+}
+function platformCard(pls){
+  const parts = ["Columns","Beams","C Channels","Handrail","Decking","Stairs"];
+  const card = el("div", "card");
+  const h = el("h3"); h.append(document.createTextNode("Platforms")); const pct = el("span", "pct"); h.append(pct); card.append(h);
+  const sc = el("div", "scroll"); const mx = el("div", "mx"); sc.append(mx); card.append(sc);
+  mx.style.gridTemplateColumns = `170px repeat(${parts.length}, minmax(64px,1fr))`;
+  mx.append(el("span")); parts.forEach(p => mx.append(el("span", "h", p)));
+  const ids = [];
+  for (const pl of pls){
+    mx.append(el("span", "rl", pl.code + " " + pl.name));
+    for (const p of parts){
+      const raw = pl.cells[p]; const it = raw && reg(raw, pl.code + " " + pl.name);
+      if (!it){ const bl = el("div", "blank"); bl.title = "Not part of this platform"; mx.append(bl); continue; }
+      ids.push(it.row_id); const cell = el("div", "cell"); cell.append(square(it)); mx.append(cell);
+    }
+  }
+  card._ids = ids; card._pct = pct;
+  return card;
+}
+function otherCards(groups){
+  const box = el("div", "tiles"); const cards = [];
+  for (const g of groups){
+    const card = el("div", "card"); const h = el("h3"); h.append(document.createTextNode(g.name)); const pct = el("span", "pct"); h.append(pct); card.append(h);
+    const list = el("div", "tile-list"); const ids = [];
+    for (const raw of g.items){ const it = reg(raw, g.name); if (!it) continue; ids.push(it.row_id); const tr = el("div", "trow"); tr.append(el("span", null, raw.n), square(it)); list.append(tr); }
+    card.append(list); card._ids = ids; card._pct = pct; box.append(card); cards.push(card);
+  }
+  return [box, cards];
+}
+function area(title, nodes, cards){
+  const d = el("details", "area"); d.open = true; const s = el("summary"); const p = el("span", "area-pct"); s.append(el("h2", null, title), p); d.append(s);
+  const body = el("div", "area-body"); nodes.forEach(n => body.append(n)); d.append(body);
+  const wrap = el("section", "zone"); wrap.append(d);
+  AREAS.push({ pct: p, cards }); cards.forEach(c => CARDS.push(c));
+  $("areas").append(wrap);
+}
+function buildBoard(){
+  const B = S.layout; $("areas").textContent = ""; SQ.clear(); CARDS.length = 0; AREAS.length = 0; ITEMS_BY_KEY.clear();
+  const mb = list => Math.max(...list.flatMap(ph => ph.rows.flatMap(r => r.items.map(i => i.b ? i.b[1] : 0))));
+  if (B.aisles?.length){ const ac = B.aisles.map(ph => aisleCard(ph, mb(B.aisles))); area("Product & bot aisles", ac, ac); }
+  if (B.tote?.length){ const tc = B.tote.map(ph => aisleCard(ph, mb(B.tote))); area("Tote walls", tc, tc); }
+  if (B.deck?.length){
+    const dz = B.deck.map(z => aisleCard(z, mb(B.deck.filter(x => !x.max)), (ph) => ph.name.replace("Transfer Deck – ", "TD ")));
+    const nodes = [...dz], cards = [...dz];
+    if (B.levels?.length){ const lc = levelsCard(B.levels); nodes.push(lc); cards.push(lc); }
+    area("MiniBot deck", nodes, cards);
+  }
+  if (B.other?.length){ const [ob, oc] = otherCards(B.other); area("Lift cells, S&C and core", [ob], oc); }
+  if (B.platforms?.length){ const pc = platformCard(B.platforms); area("Platforms", [pc], [pc]); }
+  // anything in the items table that the layout doesn't show yet
+  const missing = [...ITEM.values()].filter(it => !it.key);
+  if (missing.length){
+    const groups = {}; for (const it of missing) (groups[it.area] ||= []).push({ k: "r" + it.row_id, n: it.label || ("Row " + it.row_id) });
+    const [ob, oc] = otherCards(Object.entries(groups).map(([name, items]) => ({ name, items })));
+    area("Not on the layout yet", [ob], oc);
+  }
+  const lg = $("legend"); lg.textContent = "";
+  const mk = (label, style) => { const s = el("span"); const i = el("i"); if (style) i.style.cssText = style; s.append(i, document.createTextNode(label)); lg.append(s); };
+  mk("Not started"); mk("Fill = weighted install %", "background:linear-gradient(to top,var(--work) 45%,var(--empty) 45%)");
+  mk("QC passed (green dot)", "border-color:var(--ok)"); mk("QC failed (red)", "border:2px solid var(--bad)");
+  mk("Missing material (orange corner)", "background:linear-gradient(135deg,var(--warn) 30%,var(--empty) 30%)");
+  mk("Planned this week", "box-shadow:inset 0 0 0 2px var(--plan0)"); mk("Next week", "box-shadow:inset 0 0 0 2px var(--plan1)");
+  mk("Weeks 3–4 (Lookahead tab)", "box-shadow:inset 0 0 0 2px var(--plan2)"); mk("Planned earlier, not finished", "box-shadow:inset 0 0 0 2px var(--late)");
+  mk("Doesn't apply", "background:repeating-linear-gradient(135deg,var(--empty) 0 3px,var(--hatch) 3px 6px)");
+}
+
+/* ---------- painting ---------- */
+function paint(rid){
+  const it = ITEM.get(Number(rid)), b = SQ.get(Number(rid)); if (!it || !b) return;
+  const tasks = tasksFor(it); const fill = b.firstChild; const q = qcOf(it.row_id);
+  b.className = b.className.split(" ").filter(c => c === "sq" || c === "inline" || c === "sel").join(" ");
+  if (pending.get(it.row_id)) b.classList.add("pending");
+  if (FLAGS[it.row_id]) b.classList.add("mm");
+  if (q && q.tags) b.classList.add("tagged");
+  const pc = planClass(it.row_id);
+  let title = `${it.where} – ${it.n}`;
+  if (tab === "plan"){
+    fill.style.height = (pctOf(it) * 100) + "%"; fill.style.setProperty("--c", "var(--hatch)");
+    if (pc && (planWeek < 0 || pc === "plan" + planWeek || pc === "planlate")) b.classList.add(pc);
+    const p = PLAN[it.row_id]; if (p) title += `\nPlanned week of ${p.week_start}${p.crew ? " · " + p.crew : ""}${p.tasks?.length ? " · " + p.tasks.map(t => TASK[t]?.name || t).join(", ") : ""}`;
+  } else if (layer === "all"){
+    const p = pctOf(it);
+    fill.style.height = (p * 100) + "%"; fill.style.setProperty("--c", "var(--work)");
+    if (p >= .5) b.classList.add("full");
+    if (q && q.qc === "Pass") b.classList.add("qcpass"); else if (q && q.qc === "Fail") b.classList.add("qcfail");
+    if (pc === "plan0" || pc === "plan1" || pc === "planlate") b.classList.add(pc);
+    title += `\nInstall ${Math.round(p * 100)}%` + (q && q.qc ? ` · QC ${q.qc}` : "");
+  } else if (layer === "qc"){
+    const p = pctOf(it); let c = null;
+    if (q && q.qc === "Pass") c = "var(--ok)"; else if (q && q.qc === "Fail") c = "var(--bad)"; else if (p >= .9999) c = "var(--warn)";
+    fill.style.height = c ? "100%" : "0"; fill.style.setProperty("--c", c || "var(--empty)"); if (c) b.classList.add("full");
+    title += "\n" + (q && q.qc ? "QC " + q.qc + (q.reason ? " – " + q.reason : "") : p >= .9999 ? "Waiting on QC" : "Install not complete");
+  } else if (!tasks.includes(layer)){
+    b.classList.add("na"); fill.style.height = "0"; title += `\n${TASK[layer].name} doesn't apply here`;
+  } else {
+    const d = done(it.row_id, layer);
+    fill.style.height = d ? "100%" : "0"; fill.style.setProperty("--c", color(layer)); if (d) b.classList.add("full");
+    title += `\n${TASK[layer].name}: ${d ? "done" : "not done"}`;
+  }
+  if (FLAGS[it.row_id]) title += "\nMissing material" + (FLAGS[it.row_id].note ? ": " + FLAGS[it.row_id].note : "");
+  if (q && q.tags) title += "\nTags: " + q.tags;
+  b.title = title;
+}
+function paintAll(){ for (const rid of SQ.keys()) paint(rid); summary(); }
+
+function groupPct(ids){
+  let tot = 0, got = 0;
+  for (const rid of ids){
+    const it = ITEM.get(rid); const tasks = tasksFor(it);
+    if (layer === "all" || tab === "plan"){ const w = TYPE_TOTAL[it.area_type] || 0; tot += (it.bays || 1); got += (it.bays || 1) * pctOf(it); }
+    else if (layer === "qc"){ tot += 1; if (qcOf(rid)?.qc === "Pass") got += 1; }
+    else if (tasks.includes(layer)){ tot += 1; if (done(rid, layer)) got += 1; }
+  }
+  return tot ? got / tot * 100 : null;
+}
+function fmtPct(p){ return p == null ? "—" : (p > 0 && p < 10 ? p.toFixed(1) : Math.round(p)) + "%"; }
+function planSummary(){
+  const box = $("summary"); box.textContent = "";
+  const wk = el("div", "wk"); wk.style.gridColumn = "1/-1";
+  const card = (label, c, ids, onClick) => {
+    let bays = 0, got = 0; for (const r of ids){ const it = ITEM.get(Number(r)); bays += it.bays || 1; got += (it.bays || 1) * pctOf(it); }
+    const b = el("button", "stat"); b.type = "button"; b.style.setProperty("--c", c);
+    const lab = el("span", "lab"); lab.append(el("i"), document.createTextNode(label));
+    const num = el("span", "num", String(ids.length)); num.append(el("small", null, `squares · ${Math.round(bays)} bays`));
+    const bar = el("span", "bar"); const f = el("span"); f.style.width = (bays ? got / bays * 100 : 0) + "%"; bar.append(f);
+    b.append(lab, num, bar, el("span", "lab", bays ? `${Math.round(got / bays * 100)}% installed so far` : "nothing planned"));
+    if (onClick) b.addEventListener("click", onClick); wk.append(b);
+  };
+  const late = Object.keys(PLAN).filter(r => planClass(r) === "planlate");
+  if (late.length) card("Carried over (earlier weeks, unfinished)", "var(--late)", late);
+  for (let i = 0; i < PLAN_WEEKS; i++) card(weekLabel(i), `var(--plan${i})`, Object.keys(PLAN).filter(r => PLAN[r].week_start === weekStart(i)), () => { planWeek = i; buildLayers(); hint(); paintAll(); });
+  box.append(wk);
+  for (const c of CARDS) c._pct.textContent = fmtPct(groupPct(c._ids));
+  for (const a of AREAS) a.pct.textContent = fmtPct(groupPct(a.cards.flatMap(c => c._ids))) + " installed";
+}
+function summary(){
+  if (tab === "plan") return planSummary();
+  const box = $("summary"); box.textContent = "";
+  const all = [...SQ.keys()];
+  const add = (key, name, c, p, sub) => {
+    const b = el("button", "stat"); b.type = "button"; b.style.setProperty("--c", c);
+    const lab = el("span", "lab"); lab.append(el("i"), document.createTextNode(name));
+    const num = el("span", "num", fmtPct(p)); if (sub) num.append(el("small", null, sub));
+    const bar = el("span", "bar"); const f = el("span"); f.style.width = (p || 0) + "%"; bar.append(f);
+    b.append(lab, num, bar); b.addEventListener("click", () => { if (tab !== "progress") setTab("progress"); setLayer(key); }); box.append(b);
+  };
+  let bt = 0, bg = 0; for (const rid of all){ const it = ITEM.get(rid); bt += it.bays || 1; bg += (it.bays || 1) * pctOf(it); }
+  add("all", "Install (weighted by bays)", "var(--work)", bt ? bg / bt * 100 : 0);
+  let qt = 0, qp = 0, qw = 0; for (const rid of all){ qt++; const q = qcOf(rid); if (q?.qc === "Pass") qp++; else if (pctOf(ITEM.get(rid)) >= .9999) qw++; }
+  add("qc", "QC passed", "var(--ok)", qt ? qp / qt * 100 : 0, `${qp}/${qt} · ${qw} waiting`);
+  for (const t of TASK_ORDER){
+    let tot = 0, got = 0;
+    for (const rid of all){ const it = ITEM.get(rid); if ((W[it.area_type] || {})[t] > 0){ tot++; if (done(rid, t)) got++; } }
+    if (!tot) continue;
+    add(t, TASK[t].name, color(t), got / tot * 100, `${got}/${tot}`);
+  }
+  for (const c of CARDS) c._pct.textContent = fmtPct(groupPct(c._ids));
+  for (const a of AREAS) a.pct.textContent = fmtPct(groupPct(a.cards.flatMap(c => c._ids))) + (layer === "all" ? " installed" : layer === "qc" ? " QC passed" : " " + (TASK[layer]?.name || "").toLowerCase());
+}
+
+function buildLayers(){
+  const box = $("layers"); box.textContent = "";
+  if (tab === "plan"){
+    for (let i = -1; i < PLAN_WEEKS; i++){
+      const c = el("button", "chip"); c.type = "button"; c.dataset.w = i; const d = el("span", "dot");
+      d.style.background = i < 0 ? "linear-gradient(90deg,var(--plan0),var(--plan3))" : `var(--plan${i})`;
+      c.append(d, document.createTextNode(i < 0 ? "All 4 weeks" : weekLabel(i))); c.setAttribute("aria-pressed", String(i === planWeek));
+      c.addEventListener("click", () => { planWeek = i; buildLayers(); hint(); paintAll(); });
+      box.append(c);
+    }
+    return;
+  }
+  const opts = [["all", "All (install %)"], ["qc", "QC"], ...TASK_ORDER.filter(t => Object.values(W).some(w => w[t] > 0)).map(t => [t, TASK[t].name])];
+  for (const [s, n] of opts){
+    const c = el("button", "chip"); c.type = "button"; c.dataset.s = s;
+    const d = el("span", "dot"); if (s === "qc") c.style.setProperty("--c", "var(--ok)"); else if (s !== "all") c.style.setProperty("--c", color(s));
+    c.append(d, document.createTextNode(n)); c.setAttribute("aria-pressed", String(s === layer));
+    c.addEventListener("click", () => setLayer(s));
+    box.append(c);
+  }
+}
+function hint(){
+  const h = $("modehint");
+  const ro = isCrew() ? "" : " <span>(view only — sign in to make changes)</span>";
+  if (tab === "plan") h.innerHTML = planWeek < 0
+    ? "<b>4-week lookahead:</b> outline colour shows the planned week; red outline = planned in an earlier week and still not finished. Pick a week to add or remove squares." + ro
+    : `<b>Lookahead · ${weekLabel(planWeek)}:</b> tap squares (or a row name) to add or remove them from that week. Planning stays on the board; it doesn't go to Smartsheet.` + ro;
+  else if (catchUp && layer === "all") h.innerHTML = "<b>Catch-up · All:</b> tap a square and tick what was already finished, or pick a task above and tap squares / row names to fill them in quickly.";
+  else if (layer === "all") h.innerHTML = "<b>All:</b> fill shows weighted install %. Tap a square to check off tasks, flag missing material or report an issue." + ro;
+  else if (layer === "qc") h.innerHTML = "<b>QC (from Smartsheet):</b> green passed, red failed, amber install complete and waiting on QC." ;
+  else h.innerHTML = `<b>${TASK[layer].name}:</b> tap a square to mark it done, tap again to clear. Tap a row name to mark the whole row.` + ro;
+}
+function setLayer(s){ layer = s; buildLayers(); hint(); paintAll(); }
+
+/* ---------- interaction ---------- */
+function needSignIn(){ toast("Sign in with the site passcode to make changes.", null, "Sign in", openSignIn); }
+
+function onSquare(it){
+  if (tab === "plan"){ if (planWeek < 0) return openSheet(it); if (!isCrew()) return needSignIn(); return togglePlan([it.row_id]); }
+  if (layer !== "all" && layer !== "qc"){
+    if (!tasksFor(it).includes(layer)) return;
+    if (!isCrew()) return openSheet(it);
+    const was = done(it.row_id, layer);
+    mark([it.row_id], layer, !was);
+    if (!was && !catchReady()) return;
+    toast(`${was ? "Cleared" : catchUp ? "Caught up" : "Marked"} ${TASK[layer].name} · ${it.where} ${it.n}`, () => mark([it.row_id], layer, was));
+    const b = SQ.get(it.row_id); b.classList.remove("flash"); void b.offsetWidth; b.classList.add("flash");
+    return;
+  }
+  openSheet(it);
+}
+function rowBulk(name, ids){
+  if (tab === "plan"){ if (planWeek < 0) return toast("Pick a week first, then tap the row name.", null); if (!isCrew()) return needSignIn(); return togglePlan(ids); }
+  if (layer === "all" || layer === "qc") return;
+  if (!isCrew()) return needSignIn();
+  const app = ids.filter(r => tasksFor(ITEM.get(r)).includes(layer));
+  if (!app.length) return;
+  const allDone = app.every(r => done(r, layer));
+  if (!allDone && !catchReady()) return;
+  confirmBox(`${allDone ? "Clear" : catchUp ? "Catch up" : "Mark"} ${TASK[layer].name} for all ${app.length} squares in ${name}?` + (catchUp && !allDone ? ` (done on ${catchDate}, no manhours)` : ""), allDone ? "Clear all" : "Mark all", () => {
+    const changed = app.filter(r => done(r, layer) === allDone);
+    mark(changed, layer, !allDone);
+    toast(`${allDone ? "Cleared" : "Marked"} ${changed.length} square${changed.length === 1 ? "" : "s"} · ${name}`, () => mark(changed, layer, allDone));
+  });
+}
+
+function catchReady(){
+  if (!catchUp) return true;
+  if (!catchDate){ toast("Pick the date the work was done first.", null); $("catchdate").focus(); return false; }
+  return true;
+}
+async function mark(ids, task, on){
+  if (!ids.length) return;
+  if (on && !catchReady()) { if (selected && ids.includes(selected)) renderSheet(); return; }
+  const before = ids.map(r => [r, new Set(PROG[r] || [])]);
+  for (const r of ids){ const s = PROG[r] || (PROG[r] = new Set()); on ? s.add(task) : s.delete(task); pending.set(r, (pending.get(r) || 0) + 1); paint(r); }
+  summary(); if (selected && ids.includes(selected)) renderSheet();
+  try {
+    const res = await api("mark", catchUp && on ? { row_ids: ids, task, on, backfill: true, done_date: catchDate } : { row_ids: ids, task, on });
+    for (const [r, s] of Object.entries(res.progress || {})) PROG[r] = new Set(s ? s.split(" ") : []);
+    if (res.sync && res.sync.errors && res.sync.errors.length) toast("Saved on the board, but Smartsheet didn't update: " + res.sync.errors[0], null);
+  } catch(e){
+    for (const [r, s] of before) PROG[r] = s;
+    toast("Not saved: " + e.message, null);
+  } finally {
+    for (const r of ids){ pending.set(r, (pending.get(r) || 1) - 1); if (!pending.get(r)) pending.delete(r); paint(r); }
+    summary(); if (selected && ids.includes(selected)) renderSheet();
+  }
+}
+
+async function togglePlan(ids){
+  const ws = weekStart(planWeek);
+  const allIn = ids.every(r => PLAN[r] && PLAN[r].week_start === ws);
+  const before = ids.map(r => [r, PLAN[r]]);
+  for (const r of ids){ if (allIn) delete PLAN[r]; else PLAN[r] = { row_id: r, week_start: ws, crew: null, tasks: [] }; paint(r); }
+  try {
+    const res = await api("plan_set", { row_ids: ids, week_start: allIn ? null : ws });
+    PLAN = {}; for (const p of res.plan || []) PLAN[p.row_id] = p; paintAll();
+  } catch(e){ for (const [r, p] of before){ if (p) PLAN[r] = p; else delete PLAN[r]; paint(r); } toast("Not saved: " + e.message, null); }
+}
+
+/* ---------- row sheet ---------- */
+let detail = null;
+function openSheet(it){
+  if (selected) SQ.get(selected)?.classList.remove("sel");
+  selected = it.row_id; SQ.get(it.row_id)?.classList.add("sel");
+  $("sheet-title").textContent = it.where + " – " + it.n;
+  $("sheet").hidden = false; detail = null; renderSheet();
+  const rid = it.row_id;
+  api("row_detail", { row_id: rid }).then(d => { if (selected === rid){ detail = d; renderSheet(); } }).catch(() => {});
+}
+function closeSheet(){ if (selected) SQ.get(selected)?.classList.remove("sel"); selected = null; $("sheet").hidden = true; }
+function fmtWhen(s){ return s ? new Date(s).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""; }
+function tagUrl(it){
+  const q = qcOf(it.row_id) || {};
+  const base = S.site.tag_form_url; if (!base) return null;
+  const p = new URLSearchParams(); p.set("Area of missing material", q.nn || it.phase || ""); p.set("Bay Reference", q.teka || (it.where + " - " + it.n)); p.set("Tracker RowID", String(it.row_id));
+  return base + "?" + p.toString().replace(/\+/g, "%20");
+}
+function renderSheet(){
+  if (!selected) return;
+  const it = ITEM.get(selected); const box = $("sheet-body"); box.textContent = "";
+  const q = qcOf(it.row_id) || {}; const p = pctOf(it);
+  $("sheet-meta").textContent = `RowID ${it.row_id} · ${it.area} · ${it.bays || 0} bays` + (isCrew() ? "" : " · view only");
+  const top = el("div", "box"); const pr = el("div", "row"); pr.append(el("b", null, "Install " + Math.round(p * 100) + "%"));
+  if (p >= .9999) pr.append(el("span", "pill " + (q.qc === "Pass" ? "closed" : "open"), q.qc === "Pass" ? "QC passed" : q.qc === "Fail" ? "QC failed" : "Waiting on QC"));
+  const bar = el("span", "bar"); const f = el("span"); f.style.width = p * 100 + "%"; bar.append(f); top.append(pr, bar); box.append(top);
+  const byTask = {}; for (const r of detail?.progress || []) byTask[r.task_key] = r;
+  const w = W[it.area_type] || {}; const tot = TYPE_TOTAL[it.area_type] || 1;
+  for (const t of tasksFor(it)){
+    const d = done(it.row_id, t);
+    const lab = el("label", "stg" + (d ? " done" : "")); lab.style.setProperty("--c", color(t));
+    const cb = el("input"); cb.type = "checkbox"; cb.checked = d; cb.disabled = !isCrew() || !!pending.get(it.row_id);
+    cb.addEventListener("change", () => mark([it.row_id], t, cb.checked));
+    lab.append(cb, el("span", null, TASK[t].name), el("span", "w", Math.round(w[t] / tot * 100) + "%"));
+    if (d && byTask[t]) lab.append(el("span", "who", byTask[t].backfill ? `Catch-up · done ${new Date(byTask[t].done_at).toLocaleDateString([], { month: "short", day: "numeric" })} · ${byTask[t].done_by || ""}` : [fmtWhen(byTask[t].done_at), byTask[t].done_by].filter(Boolean).join(" · ")));
+    box.append(lab);
+  }
+  // missing material
+  const mm = el("div", "box" + (FLAGS[it.row_id] ? " bad" : ""));
+  const ml = el("label", "row"); const mcb = el("input"); mcb.type = "checkbox"; mcb.checked = !!FLAGS[it.row_id]; mcb.disabled = !isCrew(); mcb.style.cssText = "width:20px;height:20px;accent-color:var(--warn)";
+  ml.append(mcb, el("b", null, "Missing material"));
+  const note = el("textarea"); note.placeholder = "What's missing? (optional)"; note.value = FLAGS[it.row_id]?.note || detail?.flag?.note || ""; note.disabled = !isCrew(); note.hidden = !mcb.checked;
+  const save = el("button", "btn sm", "Save note"); save.type = "button"; save.hidden = !mcb.checked || !isCrew();
+  const doFlag = async (on) => {
+    const prev = FLAGS[it.row_id];
+    if (on) FLAGS[it.row_id] = { row_id: it.row_id, note: note.value }; else delete FLAGS[it.row_id];
+    paint(it.row_id); renderSheet();
+    try { await api("flag", { row_id: it.row_id, missing: on, note: note.value || null }); toast(on ? "Flagged missing material (Smartsheet updated)" : "Missing material cleared", null); }
+    catch(e){ if (prev) FLAGS[it.row_id] = prev; else delete FLAGS[it.row_id]; paint(it.row_id); renderSheet(); toast("Not saved: " + e.message, null); }
+  };
+  mcb.addEventListener("change", () => doFlag(mcb.checked));
+  save.addEventListener("click", () => doFlag(true));
+  mm.append(ml, note, save); box.append(mm);
+  // QC + tags
+  const qb = el("div", "box" + (q.qc === "Fail" ? " bad" : q.qc === "Pass" ? " ok" : ""));
+  qb.append(el("b", null, "QC (Smartsheet)"));
+  qb.append(el("span", null, q.qc ? `Cleared by QC: ${q.qc}` + (q.pass_date ? ` · ${q.pass_date}` : "") : "Not checked yet"));
+  if (q.reason) qb.append(el("span", null, "Reason: " + q.reason));
+  if (q.tags) qb.append(el("span", null, "Tags: " + q.tags));
+  if (q.status) qb.append(el("span", "meta", "Status: " + q.status));
+  const tu = tagUrl(it);
+  if (tu){ const a = el("a", "btn", "Report issue / generate tag"); a.href = tu; a.target = "_blank"; a.rel = "noopener"; qb.append(a); }
+  box.append(qb);
+  // plan
+  const pl = PLAN[it.row_id];
+  if (pl) box.append(el("div", "meta", `Planned for the week of ${pl.week_start}${pl.crew ? " · " + pl.crew : ""}`));
+  if (detail?.log?.length){
+    const h = el("details"); h.append(el("summary", "meta", "History"));
+    const tl = el("div", "timeline"); for (const l of detail.log) tl.append(el("div", null, `${fmtWhen(l.at)}  ${l.action === "done" ? "✓" : "✗"} ${TASK[l.task_key]?.name || l.task_key}  ${l.by || ""}`));
+    h.append(tl); box.append(h);
+  }
+}
+
+/* ---------- catch-up mode (admin) ---------- */
+function setCatch(on){
+  catchUp = on && isAdmin();
+  $("catchbar").hidden = !catchUp || tab !== "progress";
+  $("catchon").hidden = !isAdmin() || catchUp || tab !== "progress";
+  $("catchdate").value = catchDate; $("catchdate").max = S ? S.site.today : "";
+  fixHeader(); if (S) hint();
+}
+$("catchon").addEventListener("click", () => setCatch(true));
+$("catchoff").addEventListener("click", () => setCatch(false));
+$("catchdate").addEventListener("change", () => { catchDate = $("catchdate").value; store.set("catchdate", catchDate); });
+
+/* ---------- toast / modal ---------- */
+let toastTimer = null, toastFn = null;
+function toast(msg, undo, label = "Undo", fn){
+  $("toast-msg").textContent = msg; toastFn = undo || fn || null;
+  $("toast-undo").textContent = label; $("toast-undo").hidden = !toastFn; $("toast").hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { $("toast").hidden = true; toastFn = null; }, toastFn ? 5000 : 4000);
+}
+$("toast-undo").addEventListener("click", () => { const f = toastFn; toastFn = null; $("toast").hidden = true; if (f) f(); });
+function openModal(build, wide){
+  const m = $("modal"); m.textContent = ""; m.className = "modal" + (wide ? " wide" : "");
+  const x = el("button", "close", "×"); x.type = "button"; x.setAttribute("aria-label", "Close"); x.addEventListener("click", closeModal); m.append(x);
+  build(m); m.hidden = false; $("modal-back").hidden = false;
+  const f = m.querySelector("input,select,textarea,button:not(.close)"); if (f) f.focus();
+}
+function closeModal(){ $("modal").hidden = true; $("modal-back").hidden = true; }
+$("modal-back").addEventListener("click", closeModal);
+function confirmBox(text, okLabel, fn){
+  openModal(m => {
+    m.append(el("h4", null, text));
+    const r = el("div", "row"); const c = el("button", "btn", "Cancel"); const o = el("button", "btn primary", okLabel);
+    c.addEventListener("click", closeModal); o.addEventListener("click", () => { closeModal(); fn(); }); r.append(o, c); m.append(r);
+  });
+}
+$("sheet-close").addEventListener("click", closeSheet);
+document.addEventListener("keydown", e => { if (e.key === "Escape"){ if (!$("modal").hidden) closeModal(); else closeSheet(); } });
+
+/* ---------- sign in ---------- */
+function renderWho(){
+  $("who").textContent = auth ? `${auth.name} · ${auth.role === "admin" ? "admin" : "crew"}` : "View only";
+  $("signin").textContent = auth ? "Sign out" : "Sign in";
+  $("tab-settings").hidden = !isAdmin();
+  if (tab === "settings" && !isAdmin()) setTab("progress");
+  setCatch(catchUp);
+  if (S) { hint(); if (selected) renderSheet(); }
+}
+function openSignIn(){
+  openModal(m => {
+    m.append(el("h4", null, "Sign in"));
+    m.append(el("p", "note", "Use the site passcode from your supervisor. Your name goes on every check you make."));
+    const n = el("label", "f", "Your name"); const ni = el("input"); ni.type = "text"; ni.autocomplete = "name"; ni.value = store.get("lastname") || ""; n.append(ni);
+    const p = el("label", "f", "Site passcode"); const pi = el("input"); pi.type = "password"; pi.autocomplete = "current-password"; p.append(pi);
+    const err = el("div", "status err"); const go = el("button", "btn primary", "Sign in"); go.type = "submit";
+    const f = el("form"); f.style.cssText = "display:grid;gap:10px"; f.append(n, p, err, go); m.append(f);
+    f.addEventListener("submit", async e => {
+      e.preventDefault(); err.textContent = "";
+      if (!ni.value.trim()){ err.textContent = "Enter your name."; return; }
+      go.disabled = true;
+      try {
+        const saved = auth; auth = { pass: pi.value, name: ni.value.trim() };
+        const r = await api("login"); auth.role = r.role; store.set("auth", auth); store.set("lastname", auth.name);
+        closeModal(); renderWho(); paintAll(); toast(`Signed in as ${auth.name}`, null);
+      } catch(x){ auth = null; err.textContent = x.message; }
+      go.disabled = false;
+    });
+  });
+}
+$("signin").addEventListener("click", () => { if (auth){ auth = null; store.del("auth"); renderWho(); paintAll(); } else openSignIn(); });
+
+/* ---------- tabs ---------- */
+function setTab(t){
+  tab = t;
+  for (const b of document.querySelectorAll(".tab")) b.setAttribute("aria-selected", String(b.dataset.tab === t));
+  const boardTab = t === "progress" || t === "plan";
+  $("view-board").hidden = !boardTab; $("boardbar").hidden = !boardTab;
+  $("view-crew").hidden = t !== "crew"; $("view-report").hidden = t !== "report"; $("view-settings").hidden = t !== "settings";
+  closeSheet(); setCatch(catchUp);
+  if (boardTab){ buildLayers(); hint(); paintAll(); }
+  if (t === "crew") renderCrew();
+  if (t === "report") renderReport();
+  if (t === "settings") renderSettings();
+  store.set("tab", t);
+}
+for (const b of document.querySelectorAll(".tab")) b.addEventListener("click", () => setTab(b.dataset.tab));
+
+/* ================= CREW HOURS ================= */
+const BUCKETS = ["Material handling", "Cleanup / housekeeping", "Safety / meetings", "Travel / waiting", "Other"];
+let C = { crewId: store.get("crew") || null, date: null, day: null, draft: {}, at: "" };
+function areaList(){
+  const by = {}; for (const it of ITEM.values()){ (by[it.phase || "Other"] ||= new Set()).add(it.area); }
+  return Object.entries(by).map(([ph, s]) => [ph, [...s].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))]);
+}
+function keyLabel(k, d){ if (k.startsWith("grp:")) return "Group: " + k.slice(4); if (k.startsWith("x:")) return k.slice(2) + " (non-install)"; return k; }
+function currentCounts(){ const cur = {}; const grp = {}; for (const e of C.day?.events || []){ cur[e.area_key] = e.count; if (e.group_areas) grp[e.area_key] = e.group_areas; } return { cur, grp }; }
+async function loadCrewDay(){
+  if (!C.crewId) return;
+  $("crew-body").textContent = ""; $("crew-body").append(el("div", "skeleton", "Loading…"));
+  try { C.day = await api("crew_day", { crew_id: C.crewId, date: C.date }); C.draft = {}; drawCrew(); }
+  catch(e){ $("crew-body").textContent = ""; $("crew-body").append(el("p", "status err", e.message)); }
+}
+function renderCrew(){
+  const v = $("view-crew"); v.textContent = "";
+  if (!isCrew()){ v.append(el("h2", null, "Crew hours")); const p = el("p", "note", "Sign in with the site passcode to log where your crew is working."); const b = el("button", "btn primary", "Sign in"); b.addEventListener("click", openSignIn); v.append(p, b); return; }
+  if (!C.date) C.date = S.site.today;
+  if (!C.crewId || !S.crews.find(c => c.id === C.crewId)) C.crewId = S.crews[0]?.id || null;
+  const head = el("div", "row"); head.append(el("h2", null, "Crew hours"));
+  const crews = el("div", "layers"); for (const c of S.crews){ const b = el("button", "chip", c.name); b.setAttribute("aria-pressed", String(c.id === C.crewId)); b.addEventListener("click", () => { C.crewId = c.id; store.set("crew", c.id); renderCrew(); }); crews.append(b); }
+  const d = el("input"); d.type = "date"; d.value = C.date; d.max = S.site.today; d.addEventListener("change", () => { C.date = d.value; loadCrewDay(); });
+  head.append(crews, d); v.append(head, el("div", null)); v.lastChild.id = "crew-body";
+  loadCrewDay();
+}
+function drawCrew(){
+  const body = $("crew-body"); body.textContent = "";
+  const D = C.day; const closed = D.day && D.day.status === "closed"; const isToday = C.date === S.site.today;
+  const { cur, grp } = currentCounts();
+  const on = D.people.filter(p => p.on).length;
+  const placedNow = Object.entries(cur).reduce((a, [k, n]) => a + (C.draft[k] ?? n), 0) + Object.entries(C.draft).filter(([k]) => !(k in cur)).reduce((a, [, n]) => a + n, 0);
+  const k = el("div", "kpis");
+  const kpi = (v, l, cls) => { const x = el("div", "kpi" + (cls ? " " + cls : "")); x.append(el("div", "v", v), el("div", "l", l)); return x; };
+  if (D.clock) k.append(kpi(isToday ? String(on) : String(D.people.length), isToday ? "on the clock now" : "punched that day"), kpi(String(placedNow), "placed by lead", isToday && placedNow !== on ? "bad" : "ok"));
+  else k.append(kpi(String(placedNow), "placed by lead now"), kpi("Off", "time clock — hours entered at Close day"));
+  k.append(
+    kpi(closed ? "Closed" : "Open", closed ? `by ${D.day.closed_by || ""}` : "day status", closed ? "ok" : ""));
+  body.append(k);
+  if (D.note) body.append(el("p", "status err", D.note));
+  if (D.clock && isToday && placedNow !== on && !closed) body.append(el("p", "note", placedNow < on ? `${on - placedNow} on the clock aren't placed — add them to an area.` : `You've placed ${placedNow - on} more than are on the clock.`));
+  const grid = el("div", "crewgrid"); body.append(grid);
+  // left: placements
+  const left = el("div", "card"); grid.append(left);
+  left.append(el("h3", null, closed ? "Where the crew worked" : "Where is the crew right now?"));
+  if (closed){
+    const t = el("table", "t"); t.innerHTML = "<thead><tr><th>Area</th><th>Hours</th><th>Earned bays</th><th>h / bay</th></tr></thead>";
+    const tb = el("tbody"); let th = 0;
+    for (const h of D.hours || []){ th += Number(h.hours); const tr = el("tr"); tr.append(el("td", null, h.area), el("td", "num", Number(h.hours).toFixed(2)), el("td", "num", Number(h.earned_bays || 0).toFixed(2)), el("td", "num", h.earned_bays > 0 ? (h.hours / h.earned_bays).toFixed(1) : "—")); tb.append(tr); }
+    t.append(tb); const tf = el("tfoot"); const fr = el("tr"); fr.append(el("td", null, "Total"), el("td", "num", th.toFixed(2)), el("td"), el("td")); tf.append(fr); t.append(tf); left.append(t);
+    if (D.day.gap_note) left.append(el("p", "note", "Unplaced time: " + D.day.gap_note));
+    if (isAdmin()){ const b = el("button", "btn danger", "Reopen this day"); b.addEventListener("click", () => confirmBox("Reopen this day? Hours will be recalculated when it's closed again.", "Reopen", async () => { try { await api("reopen_day", { crew_id: C.crewId, date: C.date }); loadCrewDay(); } catch(e){ toast(e.message, null); } })); left.append(b); }
+    else left.append(el("p", "note", "Closed. Ask an admin to reopen it if something's wrong."));
+  } else {
+    const keys = [...new Set([...Object.keys(cur), ...Object.keys(C.draft)])].filter(k => (C.draft[k] ?? cur[k]) > 0 || k in C.draft);
+    if (!keys.length) left.append(el("p", "note", "Nobody placed yet. Add the areas your crew is working in."));
+    for (const key of keys){
+      const v = C.draft[key] ?? cur[key] ?? 0; const changed = key in C.draft && C.draft[key] !== (cur[key] ?? 0);
+      const r = el("div", "place"); const nm = el("div"); nm.append(el("div", "nm", keyLabel(key)));
+      if (key.startsWith("grp:")){ const g = grp[key] || (D.groups.find(x => "grp:" + x.name === key) || {}).areas || []; nm.append(el("div", "sub", g.join(" · "))); }
+      const st = el("div", "stepper"); const minus = el("button", null, "−"); const out = el("output", changed ? "chg" : null, String(v)); const plus = el("button", null, "+");
+      minus.type = plus.type = "button"; minus.setAttribute("aria-label", "One less in " + key); plus.setAttribute("aria-label", "One more in " + key);
+      minus.addEventListener("click", () => { C.draft[key] = Math.max(0, v - 1); drawCrew(); });
+      plus.addEventListener("click", () => { C.draft[key] = v + 1; drawCrew(); });
+      st.append(minus, out, plus); r.append(nm, st); left.append(r);
+    }
+    const add = el("div", "row"); add.style.marginTop = "10px";
+    const sel = el("select"); sel.setAttribute("aria-label", "Add an area");
+    sel.append(new Option("+ Add area…", ""));
+    if (D.groups.length){ const og = document.createElement("optgroup"); og.label = "Saved groups"; for (const g of D.groups) og.append(new Option(g.name + " (" + g.areas.length + " areas)", "grp:" + g.name)); sel.append(og); }
+    for (const [ph, list] of areaList()){ const og = document.createElement("optgroup"); og.label = ph; for (const a of list) og.append(new Option(a, a)); sel.append(og); }
+    const ob = document.createElement("optgroup"); ob.label = "Non-install time"; for (const b of BUCKETS) ob.append(new Option(b, "x:" + b)); sel.append(ob);
+    sel.addEventListener("change", () => { if (sel.value){ if (!(sel.value in C.draft)) C.draft[sel.value] = (cur[sel.value] || 0) + 1; drawCrew(); } });
+    const ng = el("button", "btn sm", "New group…"); ng.type = "button"; ng.addEventListener("click", groupDialog);
+    add.append(sel, ng); left.append(add);
+    const dirty = Object.keys(C.draft).some(k => C.draft[k] !== (cur[k] ?? 0));
+    const saveRow = el("div", "row"); saveRow.style.marginTop = "12px";
+    const tl = el("label", "f", "Time of change"); const ti = el("input"); ti.type = "time"; ti.value = C.at || ""; ti.addEventListener("change", () => { C.at = ti.value; }); tl.append(ti);
+    const sv = el("button", "btn primary", "Save placement"); sv.disabled = !dirty;
+    sv.addEventListener("click", async () => {
+      const changes = Object.entries(C.draft).filter(([k, n]) => n !== (cur[k] ?? 0)).map(([k, n]) => ({ area_key: k, count: n, group_areas: k.startsWith("grp:") ? (D.groups.find(g => "grp:" + g.name === k) || {}).areas || grp[k] || null : null }));
+      let at; if (C.at){ const [hh, mm] = C.at.split(":").map(Number); const dt = new Date(C.date + "T00:00:00"); dt.setHours(hh, mm, 0, 0); at = dt.toISOString(); }
+      sv.disabled = true;
+      try { await api("crew_set", { crew_id: C.crewId, date: C.date, at, changes }); C.at = ""; toast("Placement saved", null); loadCrewDay(); }
+      catch(e){ toast("Not saved: " + e.message, null); sv.disabled = false; }
+    });
+    const rs = el("button", "btn", "Discard"); rs.disabled = !dirty; rs.addEventListener("click", () => { C.draft = {}; drawCrew(); });
+    saveRow.append(sv, rs, tl); left.append(saveRow);
+    left.append(el("p", "note", "Leave the time blank for “now”. Set a time if you're catching up on a move from earlier."));
+  }
+  // right: people + log + close
+  const right = el("div", "card"); grid.append(right);
+  if (D.clock){
+    right.append(el("h3", null, "Crew on the time clock"));
+    const pp = el("div", "people"); for (const p of D.people){ pp.append(el("span", "person" + (p.on ? " on" : ""), p.name)); } if (!D.people.length) pp.append(el("span", "note", "No punches yet."));
+    right.append(pp);
+  } else {
+    right.append(el("h3", null, "Hours for this day"));
+    right.append(el("p", "note", "The time clock isn't connected for this site, so at Close day you enter how many people worked in each area and for how long. Logging placements during the day is optional — it pre-fills Close day."));
+  }
+  right.append(el("h3", null, "Today's log")); right.lastChild.style.marginTop = "12px";
+  const tl = el("div", "timeline");
+  for (const e of D.events){ tl.append(el("div", null, `${new Date(e.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}  ${keyLabel(e.area_key)} → ${e.count}`)); }
+  if (!D.events.length) tl.append(el("div", null, "Nothing logged yet."));
+  right.append(tl);
+  if (!closed){
+    const r = el("div", "row"); r.style.marginTop = "12px";
+    if (D.events.length){ const u = el("button", "btn sm", "Undo last entry"); u.addEventListener("click", () => confirmBox("Undo the last placement entry?", "Undo", async () => { try { await api("crew_undo", { crew_id: C.crewId, date: C.date }); loadCrewDay(); } catch(e){ toast(e.message, null); } })); r.append(u); }
+    const cl = el("button", "btn primary", "Close day…"); cl.addEventListener("click", () => D.clock ? closeDayDialog() : manualCloseDialog()); r.append(cl);
+    right.append(r);
+  }
+}
+function groupDialog(){
+  openModal(m => {
+    m.append(el("h4", null, "New group"), el("p", "note", "For crews working several nearby areas at once (e.g. two product aisles and two bot aisles). Hours are split by the work checked off in each area that day, or by bay count if nothing was checked."));
+    const n = el("label", "f", "Group name"); const ni = el("input"); ni.type = "text"; ni.placeholder = "e.g. PA-020 block"; n.append(ni); m.append(n);
+    const list = el("div", "checklist"); const chosen = new Set();
+    for (const [ph, areas] of areaList()){ list.append(el("div", "grp", ph)); for (const a of areas){ const l = el("label"); const c = el("input"); c.type = "checkbox"; c.addEventListener("change", () => c.checked ? chosen.add(a) : chosen.delete(a)); l.append(c, document.createTextNode(a)); list.append(l); } }
+    m.append(list);
+    const err = el("div", "status err"); const go = el("button", "btn primary", "Save group"); m.append(err, go);
+    go.addEventListener("click", async () => {
+      if (!ni.value.trim() || chosen.size < 2){ err.textContent = "Give it a name and pick at least two areas."; return; }
+      try { await api("group_save", { crew_id: C.crewId, name: ni.value.trim(), areas: [...chosen] }); closeModal(); await loadCrewDay(); C.draft["grp:" + ni.value.trim()] = 1; drawCrew(); }
+      catch(e){ err.textContent = e.message; }
+    });
+  });
+}
+async function closeDayDialog(gapAssign, splitOverride){
+  let r;
+  try { r = await api("close_preview", { crew_id: C.crewId, date: C.date, gap_assign: gapAssign, split_override: splitOverride }); }
+  catch(e){ toast(e.message, null); return; }
+  openModal(m => {
+    const crew = S.crews.find(c => c.id === C.crewId);
+    m.append(el("h4", null, `Close day · ${crew.name} · ${C.date}`));
+    const k = el("div", "kpis");
+    const kpi = (v, l, cls) => { const x = el("div", "kpi" + (cls ? " " + cls : "")); x.append(el("div", "v", v), el("div", "l", l)); return x; };
+    k.append(kpi(r.punched.toFixed(1), "hours on the clock"), kpi(r.allocated.toFixed(1), "placed by lead"), kpi(r.unplaced.toFixed(1) + " h", `unplaced (${r.gapPct}%)`, r.needsAssign && !gapAssign ? "bad" : ""));
+    m.append(k);
+    if (r.gapNote) m.append(el("p", "note", "Unplaced time: " + r.gapNote));
+    if (r.needsAssign && !gapAssign){
+      m.append(el("p", null, `${r.unplaced.toFixed(2)} hours were on the clock but not placed. That's more than ${S.site.gap_auto_pct}%, so say where they went:`));
+      const opts = [...new Set([...Object.keys(r.timeline || {}), ...BUCKETS.map(b => "x:" + b)])];
+      const inputs = {}; const t = el("table", "t"); const tb = el("tbody");
+      for (const o of opts){ const tr = el("tr"); const i = el("input"); i.type = "number"; i.min = "0"; i.step = "0.25"; i.value = ""; inputs[o] = i; tr.append(el("td", null, keyLabel(o)), el("td")); tr.lastChild.append(i); tb.append(tr); }
+      t.append(tb); m.append(t);
+      const left = el("p", "note"); const upd = () => { const s = Object.values(inputs).reduce((a, i) => a + (Number(i.value) || 0), 0); left.textContent = `Assigned ${s.toFixed(2)} of ${r.unplaced.toFixed(2)} h`; return s; };
+      Object.values(inputs).forEach(i => i.addEventListener("input", upd)); upd(); m.append(left);
+      const go = el("button", "btn primary", "Recalculate"); m.append(go);
+      go.addEventListener("click", () => { const s = upd(); if (Math.abs(s - r.unplaced) > 0.05){ left.textContent += " — must add up to the unplaced hours."; return; } const ga = {}; for (const [kk, i] of Object.entries(inputs)) if (Number(i.value) > 0) ga[kk] = Number(i.value); closeDayDialog(ga, splitOverride); });
+      return;
+    }
+    const t = el("table", "t"); t.innerHTML = "<thead><tr><th>Area</th><th>Hours</th><th>Earned bays</th><th>h / bay</th></tr></thead>";
+    const tb = el("tbody"); for (const x of r.rows){ const tr = el("tr"); tr.append(el("td", null, x.area + (x.bucket ? " (non-install)" : "")), el("td", "num", x.hours.toFixed(2)), el("td", "num", x.earned_bays.toFixed(2)), el("td", "num", x.earned_bays > 0 ? (x.hours / x.earned_bays).toFixed(1) : "—")); tb.append(tr); }
+    t.append(tb); const tf = el("tfoot"); const fr = el("tr"); fr.append(el("td", null, "Total"), el("td", "num", r.total.toFixed(2)), el("td"), el("td")); tf.append(fr); t.append(tf); m.append(t);
+    for (const [g, parts] of Object.entries(r.splits || {})){
+      const box = el("div", "box"); box.append(el("b", null, `${g.slice(4)} split — ${parts[0]?.basis || ""}`));
+      const inputs = {};
+      for (const p of parts){ const rr = el("div", "row"); const i = el("input"); i.type = "number"; i.min = "0"; i.max = "100"; i.step = "1"; i.value = p.pct; inputs[p.area] = i; rr.append(el("span", null, p.area), i, el("span", "note", "%")); box.append(rr); }
+      const ch = el("button", "btn sm", "Use these percentages"); ch.addEventListener("click", () => { const so = { ...(splitOverride || {}) }; so[g] = {}; for (const [a, i] of Object.entries(inputs)) so[g][a] = Number(i.value) || 0; closeDayDialog(gapAssign, so); });
+      box.append(ch); m.append(box);
+    }
+    if (Math.abs(r.total - r.punched) > 0.05) m.append(el("p", "status err", `Total ${r.total.toFixed(2)} h doesn't match ${r.punched.toFixed(2)} h on the clock.`));
+    m.append(el("p", "note", "Closing writes these rows to the Daily Manhours sheet in Smartsheet. Admins can reopen a day if it needs fixing."));
+    const row = el("div", "row"); const ok = el("button", "btn primary", "Close day"); const cancel = el("button", "btn", "Not yet");
+    cancel.addEventListener("click", closeModal);
+    ok.addEventListener("click", async () => {
+      ok.disabled = true;
+      try { const res = await api("close_confirm", { crew_id: C.crewId, date: C.date, gap_assign: gapAssign, split_override: splitOverride }); closeModal(); toast(res.sheet && !res.sheet.ok ? "Day closed, but Smartsheet wasn't updated: " + res.sheet.error : "Day closed and sent to Smartsheet", null); loadCrewDay(); }
+      catch(e){ ok.disabled = false; toast(e.message, null); }
+    });
+    row.append(ok, cancel); m.append(row);
+  }, true);
+}
+
+// ---- close day without the time clock: lead enters people x hours ----
+function manualEntriesFromPlacements(){
+  const { cur, grp } = currentCounts(); const peak = {};
+  for (const e of C.day.events) peak[e.area_key] = Math.max(peak[e.area_key] || 0, e.count);
+  const keys = Object.keys(peak).filter(k => peak[k] > 0);
+  return keys.map(k => ({ area_key: k, people: peak[k], hours: C.day.shift_hours, group_areas: k.startsWith("grp:") ? (grp[k] || (C.day.groups.find(g => "grp:" + g.name === k) || {}).areas || null) : null }));
+}
+function areaSelect(value){
+  const sel = el("select"); sel.append(new Option("Choose area…", ""));
+  if (C.day.groups.length){ const og = document.createElement("optgroup"); og.label = "Saved groups"; for (const g of C.day.groups) og.append(new Option(g.name, "grp:" + g.name)); sel.append(og); }
+  for (const [ph, list] of areaList()){ const og = document.createElement("optgroup"); og.label = ph; for (const a of list) og.append(new Option(a, a)); sel.append(og); }
+  const ob = document.createElement("optgroup"); ob.label = "Non-install time"; for (const b of BUCKETS) ob.append(new Option(b, "x:" + b)); sel.append(ob);
+  sel.value = value || ""; return sel;
+}
+async function manualCloseDialog(entries, splitOverride){
+  entries = entries || manualEntriesFromPlacements();
+  if (!entries.length) entries = [{ area_key: "", people: 1, hours: C.day.shift_hours }];
+  const crew = S.crews.find(c => c.id === C.crewId);
+  let preview = null;
+  const valid = () => entries.filter(e => e.area_key && e.people > 0 && e.hours > 0).map(e => ({ ...e, group_areas: e.area_key.startsWith("grp:") ? (C.day.groups.find(g => "grp:" + g.name === e.area_key) || {}).areas || e.group_areas || null : null }));
+  try { if (valid().length) preview = await api("close_preview", { crew_id: C.crewId, date: C.date, entries: valid(), split_override: splitOverride }); } catch(e){ toast(e.message, null); }
+  openModal(m => {
+    m.append(el("h4", null, `Close day · ${crew.name} · ${C.date}`));
+    m.append(el("p", "note", "Enter how many people worked in each area and how many hours each (after lunch). A group is split across its areas by the work checked off that day."));
+    const t = el("table", "t"); t.innerHTML = "<thead><tr><th>Area</th><th>People</th><th>Hours each</th><th>Total</th><th></th></tr></thead>";
+    const tb = el("tbody"); t.append(tb);
+    const tf = el("tfoot"); const fr = el("tr"); const totCell = el("td", "num"); fr.append(el("td", null, "Total"), el("td"), el("td"), totCell, el("td")); tf.append(fr); t.append(tf);
+    const recalc = () => { totCell.textContent = entries.reduce((a, e) => a + (e.people || 0) * (e.hours || 0), 0).toFixed(2); };
+    const draw = () => {
+      tb.textContent = "";
+      entries.forEach((e, i) => {
+        const tr = el("tr"); const a = el("td"); const sel = areaSelect(e.area_key); sel.addEventListener("change", () => { e.area_key = sel.value; }); a.append(sel);
+        const pc = el("td"); const pi = el("input"); pi.type = "number"; pi.min = "0"; pi.step = "1"; pi.value = e.people; pi.setAttribute("aria-label", "People"); pc.append(pi);
+        const hc = el("td"); const hi = el("input"); hi.type = "number"; hi.min = "0"; hi.step = "0.25"; hi.value = e.hours; hi.setAttribute("aria-label", "Hours each"); hc.append(hi);
+        const sub = el("td", "num", ((e.people || 0) * (e.hours || 0)).toFixed(2));
+        const upd = () => { e.people = Number(pi.value) || 0; e.hours = Number(hi.value) || 0; sub.textContent = (e.people * e.hours).toFixed(2); recalc(); };
+        pi.addEventListener("input", upd); hi.addEventListener("input", upd);
+        const x = el("td"); const del = el("button", "btn sm", "×"); del.setAttribute("aria-label", "Remove row"); del.addEventListener("click", () => { entries.splice(i, 1); draw(); }); x.append(del);
+        tr.append(a, pc, hc, sub, x); tb.append(tr);
+      });
+      recalc();
+    };
+    draw(); const sc = el("div", "scroll"); sc.append(t); m.append(sc);
+    const addRow = el("button", "btn sm", "+ Add area"); addRow.addEventListener("click", () => { entries.push({ area_key: "", people: 1, hours: C.day.shift_hours }); draw(); });
+    const calc = el("button", "btn", "Update preview"); calc.addEventListener("click", () => manualCloseDialog(entries, splitOverride));
+    const r1 = el("div", "row"); r1.append(addRow, calc); m.append(r1);
+    if (preview && preview.rows){
+      const pt = el("table", "t"); pt.innerHTML = "<thead><tr><th>Hours by area</th><th>Hours</th><th>Earned bays</th><th>h / bay</th></tr></thead>";
+      const pb = el("tbody"); for (const x of preview.rows){ const tr = el("tr"); tr.append(el("td", null, x.area + (x.bucket ? " (non-install)" : "")), el("td", "num", x.hours.toFixed(2)), el("td", "num", x.earned_bays.toFixed(2)), el("td", "num", x.earned_bays > 0 ? (x.hours / x.earned_bays).toFixed(1) : "—")); pb.append(tr); }
+      pt.append(pb); m.append(pt);
+      for (const [g, parts] of Object.entries(preview.splits || {})){
+        const box = el("div", "box"); box.append(el("b", null, `${g.slice(4)} split — ${parts[0]?.basis || ""}`)); const inputs = {};
+        for (const p of parts){ const rr = el("div", "row"); const i = el("input"); i.type = "number"; i.min = "0"; i.max = "100"; i.value = p.pct; inputs[p.area] = i; rr.append(el("span", null, p.area), i, el("span", "note", "%")); box.append(rr); }
+        const ch = el("button", "btn sm", "Use these percentages"); ch.addEventListener("click", () => { const so = { ...(splitOverride || {}) }; so[g] = {}; for (const [a, i] of Object.entries(inputs)) so[g][a] = Number(i.value) || 0; manualCloseDialog(entries, so); });
+        box.append(ch); m.append(box);
+      }
+    }
+    m.append(el("p", "note", "Closing writes these rows to the Daily Manhours sheet in Smartsheet. Admins can reopen a day if it needs fixing."));
+    const row = el("div", "row"); const ok = el("button", "btn primary", "Close day"); const cancel = el("button", "btn", "Not yet");
+    cancel.addEventListener("click", closeModal);
+    ok.addEventListener("click", async () => {
+      if (entries.some(e => !e.area_key && e.people > 0)){ toast("Pick an area for every row (or remove it).", null); return; }
+      ok.disabled = true;
+      try { const res = await api("close_confirm", { crew_id: C.crewId, date: C.date, entries: valid(), split_override: splitOverride }); closeModal(); toast(res.sheet && !res.sheet.ok ? "Day closed, but Smartsheet wasn't updated: " + res.sheet.error : "Day closed and sent to Smartsheet", null); loadCrewDay(); }
+      catch(e){ ok.disabled = false; toast(e.message, null); }
+    });
+    row.append(ok, cancel); m.append(row);
+  }, true);
+}
+
+/* ================= HOURS REPORT ================= */
+let R = { from: null, to: null, data: null };
+function renderReport(){
+  const v = $("view-report"); v.textContent = "";
+  v.append(el("h2", null, "Hours report"));
+  if (!isCrew()){ v.append(el("p", "note", "Sign in to see crew hours.")); return; }
+  const today = S.site.today; if (!R.to) R.to = today; if (!R.from){ const d = new Date(today + "T12:00:00"); d.setDate(d.getDate() - 30); R.from = ymd(d); }
+  const r = el("div", "row"); const f = el("input"); f.type = "date"; f.value = R.from; const t = el("input"); t.type = "date"; t.value = R.to;
+  const go = el("button", "btn primary", "Show"); const csv = el("button", "btn", "Download CSV"); csv.disabled = !R.data;
+  r.append(el("span", null, "From"), f, el("span", null, "to"), t, go, csv); v.append(r);
+  const out = el("div"); out.style.cssText = "display:grid;gap:14px"; v.append(out);
+  go.addEventListener("click", async () => { R.from = f.value; R.to = t.value; out.textContent = "Loading…"; try { R.data = await api("report", { from: R.from, to: R.to }); renderReport(); } catch(e){ out.textContent = e.message; } });
+  csv.addEventListener("click", () => downloadCsv());
+  if (!R.data){ out.append(el("p", "note", "Pick a date range and press Show. Only closed days are counted.")); return; }
+  const rows = reportRows();
+  // earned bays belong to the area and day, not the crew — count each area-day once
+  const by = (keyFn) => { const m = {}; for (const x of rows){ const k = keyFn(x); const a = m[k] ||= { hours: 0, earned: 0, inst: 0, seen: new Set() }; a.hours += x.hours; if (x.phase) a.inst += x.hours; const ad = x.date + "|" + x.area; if (!a.seen.has(ad)){ a.seen.add(ad); a.earned += x.earned; } } return m; };
+  const allSeen = new Set(); let allE = 0, allH = 0, allI = 0; for (const x of rows){ allH += x.hours; if (x.phase) allI += x.hours; const ad = x.date + "|" + x.area; if (!allSeen.has(ad)){ allSeen.add(ad); allE += x.earned; } }
+  const table = (title, m, first) => {
+    const c = el("div", "card"); c.append(el("h3", null, title)); const sc = el("div", "scroll"); const tt = el("table", "t");
+    tt.innerHTML = `<thead><tr><th>${first}</th><th>Hours</th><th>Earned bays</th><th>Hours per bay</th></tr></thead>`;
+    const tb = el("tbody"); const H = allH, E = allE, I = allI;
+    for (const [k, a] of Object.entries(m).sort((x, y) => y[1].hours - x[1].hours)){ const tr = el("tr"); tr.append(el("td", null, k), el("td", "num", a.hours.toFixed(1)), el("td", "num", a.earned.toFixed(1)), el("td", "num", a.earned > 0 ? (a.hours / a.earned).toFixed(2) : "—")); tb.append(tr); }
+    tt.append(tb); const tf = el("tfoot"); const fr = el("tr"); fr.append(el("td", null, "Total"), el("td", "num", H.toFixed(1)), el("td", "num", E.toFixed(1)), el("td", "num", E > 0 ? (I / E).toFixed(2) : "—")); tf.append(fr); tt.append(tf);
+    sc.append(tt); c.append(sc); return c;
+  };
+  out.append(el("p", "note", `${R.data.days.filter(d => d.status === "closed").length} closed crew-days. Hours per bay counts only install areas (non-install time is listed separately). Earned bays = bays × share of weighted tasks checked off that day; when racking and electrical both work an area the same day, each discipline line shows the bays it worked alongside, and totals count them once.`));
+  out.append(table("By phase & discipline", by(x => (x.phase || "Non-install") + " · " + x.discipline), "Phase · discipline"));
+  out.append(table("By area", by(x => x.area), "Area"));
+}
+function reportRows(){
+  const crew = Object.fromEntries(R.data.crews.map(c => [c.id, c]));
+  return R.data.hours.map(h => ({ date: h.work_date, crew: crew[h.crew_id]?.name || "", discipline: crew[h.crew_id]?.discipline || "", area: h.area, phase: R.data.areas[h.area]?.phase || "", hours: Number(h.hours), earned: Number(h.earned_bays || 0) }));
+}
+function downloadCsv(){
+  const rows = reportRows(); const q = s => '"' + String(s).replace(/"/g, '""') + '"';
+  const lines = ["Date,Crew,Discipline,Phase,Area,Hours,Earned bays", ...rows.map(r => [r.date, q(r.crew), q(r.discipline), q(r.phase), q(r.area), r.hours, r.earned].join(","))];
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" })); a.download = `hours_${R.from}_${R.to}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ================= SETTINGS (admin) ================= */
+function renderSettings(){
+  const v = $("view-settings"); v.textContent = ""; if (!isAdmin()) return;
+  v.append(el("h2", null, "Settings"));
+  const c = el("div", "card"); c.append(el("h3", null, "Task weights by area type"));
+  c.append(el("p", "note", "Weights are relative — each column is turned into a percentage of its total. Leave a task blank or 0 if it doesn't apply to that area type. To add, rename or reorder tasks, edit the pb_tasks table in Supabase; they show up here after a reload."));
+  const types = S.types; const draft = {}; for (const t of types) draft[t.key] = { ...(W[t.key] || {}) };
+  const sc = el("div", "scroll"); const tt = el("table", "t wt");
+  const hr = el("tr"); hr.append(el("th", null, "Task")); for (const t of types) hr.append(el("th", null, t.label)); const th = el("thead"); th.append(hr); tt.append(th);
+  const tb = el("tbody"); const totals = {};
+  for (const k of TASK_ORDER){
+    const tr = el("tr"); const n = el("td"); const dot = el("span"); dot.style.cssText = `display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;background:${color(k)}`; n.append(dot, document.createTextNode(TASK[k].name)); tr.append(n);
+    for (const t of types){ const td = el("td"); const i = el("input"); i.type = "number"; i.min = "0"; i.step = "1"; i.value = draft[t.key][k] || ""; i.setAttribute("aria-label", `${TASK[k].name} weight for ${t.label}`);
+      i.addEventListener("input", () => { draft[t.key][k] = Number(i.value) || 0; upd(); }); td.append(i); tr.append(td); }
+    tb.append(tr);
+  }
+  tt.append(tb); const tf = el("tfoot"); const fr = el("tr"); fr.append(el("td", null, "Total")); for (const t of types){ totals[t.key] = el("td", "num"); fr.append(totals[t.key]); } tf.append(fr); tt.append(tf);
+  const upd = () => { for (const t of types) totals[t.key].textContent = Object.values(draft[t.key]).reduce((a, b) => a + (Number(b) || 0), 0); }; upd();
+  sc.append(tt); c.append(sc);
+  const sv = el("button", "btn primary", "Save weights"); sv.style.marginTop = "10px";
+  sv.addEventListener("click", () => confirmBox("Save weights? Install % will change for rows of these types; run “Resync Smartsheet” afterwards to push the new numbers.", "Save", async () => {
+    const weights = []; for (const t of types) for (const [k, w] of Object.entries(draft[t.key])) if (w > 0) weights.push({ area_type: t.key, task_key: k, weight: w });
+    try { await api("weights_save", { weights }); await reload(); toast("Weights saved", null); renderSettings(); } catch(e){ toast(e.message, null); }
+  }));
+  c.append(sv); v.append(c);
+  const s1 = el("div", "card"); s1.append(el("h3", null, "Crew hours"));
+  const cr = el("div", "row");
+  const clk = el("label", "row"); const cb = el("input"); cb.type = "checkbox"; cb.checked = !!S.site.use_time_clock; cb.style.cssText = "width:20px;height:20px"; clk.append(cb, el("span", null, "Use the time clock for hours"));
+  const sh = el("label", "f", "Default hours per person (when entering by hand)"); const shi = el("input"); shi.type = "number"; shi.min = "1"; shi.max = "24"; shi.step = "0.25"; shi.value = S.site.shift_hours; sh.append(shi);
+  const gp = el("label", "f", "Unplaced time spread automatically up to (%)"); const gpi = el("input"); gpi.type = "number"; gpi.min = "0"; gpi.max = "50"; gpi.value = S.site.gap_auto_pct; gp.append(gpi);
+  const ss = el("button", "btn primary", "Save");
+  ss.addEventListener("click", async () => { try { await api("site_settings", { use_time_clock: cb.checked, shift_hours: Number(shi.value), gap_auto_pct: Number(gpi.value) }); await reload(); toast("Saved", null); renderSettings(); } catch(e){ toast(e.message, null); } });
+  cr.append(clk, sh, gp, ss); s1.append(cr);
+  s1.append(el("p", "note", "Off: at Close day the lead enters people × hours for each area. On: hours come from the time clock punches and the lead only logs where people are; unplaced time over the % above must be assigned. You can switch any time — closed days keep the hours they were closed with."));
+  v.append(s1);
+  const s2 = el("div", "card"); s2.append(el("h3", null, "Smartsheet"));
+  s2.append(el("p", "note", "The board sends Install %, Install Status, Install Start Date, Date pending QC and missing material to Smartsheet whenever something changes. Resync re-sends every row (use after changing weights, or if Smartsheet was down)."));
+  const r = el("div", "row"); const rs = el("button", "btn", "Resync Smartsheet"); const qc = el("button", "btn", "Refresh QC now");
+  rs.addEventListener("click", async () => { rs.disabled = true; rs.textContent = "Syncing…"; try { const x = await api("resync"); toast(`Sent ${x.synced} changed rows` + (x.errors.length ? ` · ${x.errors.length} problems: ${x.errors[0]}` : ""), null); } catch(e){ toast(e.message, null); } rs.disabled = false; rs.textContent = "Resync Smartsheet"; });
+  qc.addEventListener("click", async () => { try { const x = await api("qc_refresh"); QC = x.qc || {}; toast("QC refreshed", null); } catch(e){ toast(e.message, null); } });
+  r.append(rs, qc); s2.append(r); v.append(s2);
+}
+
+/* ---------- load & poll ---------- */
+function setStatus(t, err){ const s = $("status"); s.textContent = t; s.classList.toggle("err", !!err); }
+async function reload(){
+  const d = await api("state");
+  S = d; applyStatic(d); applyLive(d);
+  if (auth && d.role && d.role !== auth.role){ auth.role = d.role; store.set("auth", auth); }
+  if (auth && !d.role){ auth = null; store.del("auth"); }
+  document.title = d.site.name + " · Progress Board"; $("title").textContent = d.site.name + " Progress Board";
+  buildBoard(); renderWho();
+}
+async function poll(){
+  if (document.hidden || !S || (tab !== "progress" && tab !== "plan")) return;
+  if (pending.size) return;
+  try { const d = await api("poll"); if (pending.size) return; applyLive(d); paintAll(); if (selected) renderSheet(); setStatus("Live · updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })); }
+  catch(e){ setStatus("Offline · " + e.message, true); }
+}
+function fixHeader(){ document.documentElement.style.setProperty("--hdr", document.querySelector("header.top").offsetHeight + "px"); }
+window.addEventListener("resize", fixHeader);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+(async function start(){
+  fixHeader(); renderWho();
+  try {
+    await reload();
+    setStatus("Live · updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
+    const t = store.get("tab"); setTab(["progress", "plan", "crew", "report"].includes(t) || (t === "settings" && isAdmin()) ? t : "progress");
+    fixHeader();
+    setInterval(poll, (CFG.pollSeconds || 30) * 1000);
+  } catch(e){ setStatus("Couldn't load: " + e.message, true); $("areas").textContent = ""; $("areas").append(el("p", "status err", "Couldn't reach the board server. " + e.message)); }
+})();
+</script>
+</body>
+</html>
