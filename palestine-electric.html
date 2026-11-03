@@ -72,7 +72,16 @@ h1{margin:0;font-size:30px;font-weight:700;text-wrap:balance}
 .tg .c{font:600 10.5px var(--mono);color:var(--muted);min-width:34px;padding-top:1px}
 .sqs{display:flex;flex-wrap:wrap;gap:3px}
 .sq{width:12px;height:12px;border-radius:2px;border:1.5px solid var(--sq-off-border);background:var(--panel)}
-.sq.on{background:var(--done);border-color:var(--done)}
+.sq.on,.sq.st3{background:#3E8E2A;border-color:#2C6B1C}
+.sq.st1{background:#E8742A;border-color:#B5541A}
+.sq.st2{background:#F2C200;border-color:#B38F00}
+.steps{display:flex;flex-direction:column;gap:6px}
+.srow{display:flex;align-items:center;gap:8px}
+.srow .sq{width:14px;height:14px;flex:none}
+.srow .sn{flex:1;min-width:0;font-size:13px}
+.srow .sn span{color:var(--muted);font-size:12px}
+.trow .done{font:600 14px var(--mono);font-variant-numeric:tabular-nums}
+.trow .stp{width:36px;height:36px}
 .split{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:6px 0 6px 78px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .split:before,.split:after{content:"";flex:1;border-top:1px solid var(--line)}
 .side{flex:1 1 340px;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
@@ -164,10 +173,12 @@ body{margin:0}
   </section>
 
   <div class="legend">
-    <span><i class="sq on" style="display:inline-block"></i>Done (from the sheet's Done count)</span>
-    <span><i class="sq" style="display:inline-block"></i>Not done</span>
+    <span><i class="sq st1" style="display:inline-block"></i>Conduit / pipe · 40%</span>
+    <span><i class="sq st2" style="display:inline-block"></i>Wire pulled · 80%</span>
+    <span><i class="sq st3" style="display:inline-block"></i>Terminated · 100%</span>
+    <span><i class="sq" style="display:inline-block"></i>Not started</span>
     <span><i class="bay empty" style="display:inline-block;width:18px;height:14px;min-height:0;padding:0;border:0"></i>No drops on the print</span>
-    <span>Drops are counted by letter line, so done drops fill each row’s bays from line 6 eastward.</span>
+    <span>Drops are counted by letter line, so each row’s bays fill from line 6 eastward: green first, then yellow, then orange. Done = 40% conduit / pipe + 40% wire pulled + 20% terminated.</span>
   </div>
 </div>
 
@@ -193,6 +204,7 @@ const BLOCK={N:3,P:6,Q:9,J:12,K:15,L:18,M:21,E:24,F:27,G:30,H:33};
 const HRS_TITLE=l=>l==='N'?'# of Hours N':'# of hours '+l;
 const DESC={A2:'Product 5 mastless lift drive/ctrl',B1:'Product lift ctrl (UPS)',BP08:'Break pack trash baler',BP25:'BP floor conveyor network power cab.',BP26:'BP empty tote lift + NPC',BP27:'BP empty tote return lift + NPC',BP28:'Auto battery swapper power cab.',BP30:'Minibot dumb waiter lift',BP31:'Battery charge power',BP32:'Battery swapper (UPS)',D:'Bot charging system',H:'Maint. areas, laptops, accessories',K1:'Safety aisle access (UPS)',L1:'Safety driveway gate (UPS)',M:'Network IDF switch (UPS)',N:'Network IDF air cond',P:'Adapter cell network/PLC (UPS)',QQ:'Control room (UPS)',QQ1:'Control room',XX:'Aisle/driveway lighting'};
 const TYPES=Object.keys(DESC);
+const STEPS=['Conduit / pipe','Wire pulled','Terminated'],STEP_PCT=[40,40,20];
 const CREW_FALLBACK=['Colton Banta','Dakota Kirbow','Edys Lugo','Emmanuel Ordonez','Steve Banta','Zhakeem Holliday'];
 // Drops the print shows in each bay (row = between letter lines, col = between number lines)
 const BAYS={"F–E|10–11":{"L1":3},"F–E|7–8":{"L1":2},"F–E|8–9":{"L1":3},"F–E|9–10":{"L1":3},"G–F|8–9":{"BP28":6,"N":1},"G–F|9–10":{"BP28":6,"M":2},"H–G|8–9":{"BP28":3},"H–G|9–10":{"BP28":4},"J–H|8–9":{"BP28":6},"J–H|9–10":{"BP28":8},"K–J|8–9":{"BP28":3},"L–K|10–11":{"XX":1},"L–K|7–8":{"XX":1},"L–K|8–9":{"BP28":6,"H":1,"XX":1},"L–K|9–10":{"BP28":9,"H":1,"K1":1,"M":2,"N":1,"XX":1},"M–L|8–9":{"A2":2,"B1":2,"BP28":6,"D":3,"H":1,"K1":1},"M–L|9–10":{"A2":1,"B1":1,"BP28":3,"D":2},"N–M|10–11":{"H":1,"XX":1},"N–M|7–8":{"H":3,"K1":1,"XX":1},"N–M|8–9":{"BP26":1,"D":1},"N–M|9–10":{"BP26":1,"D":1},"P–N|10–11":{"BP08":1,"BP25":3,"P":3},"P–N|6–7":{"BP31":4,"H":3},"P–N|7–8":{"BP08":1,"BP25":3,"BP27":1,"H":1,"M":2,"N":1,"P":4},"P–N|8–9":{"H":1},"P–N|9–10":{"H":1},"Q–P|10–11":{"H":1,"XX":1},"Q–P|6–7":{"H":6,"QQ":2,"QQ1":3},"Q–P|8–9":{"BP31":6,"H":10},"Q–P|9–10":{"BP30":1,"BP31":6,"H":14,"P":1}};
@@ -240,12 +252,13 @@ function letterTotals(l){
   return {scope,done,mhArch,mhToday,mh:mhArch+mhToday};
 }
 function bayFill(){
-  // distribute each type's done count across that letter row's bays, west to east
+  // squares fill each letter row's bays west to east: terminated (green) first, then wire pulled (yellow), then conduit / pipe (orange)
   const fill={};
-  ROWS.forEach(r=>{const l=rowLetter(r);const left={};
-    TYPES.forEach(t=>left[t]=S.sheet&&S.sheet[t]?Math.min(S.sheet[t].L[l].done,S.sheet[t].L[l].scope):0);
+  ROWS.forEach(r=>{const l=rowLetter(r);const pos={};
     COLS.forEach(c=>{const b=BAYS[r+'|'+c];if(!b)return;const f={};
-      Object.keys(b).forEach(t=>{const k=Math.min(b[t],left[t]||0);f[t]=k;left[t]=(left[t]||0)-k});fill[r+'|'+c]=f;});});
+      Object.keys(b).forEach(t=>{const x=S.sheet&&S.sheet[t]?S.sheet[t].L[l]:null,s=x&&x.s?x.s:[0,0,0];const st=[];let cr=0;
+        for(let i=0;i<b[t];i++){const k=(pos[t]||0)+i;const v=k<s[2]?3:k<s[1]?2:k<s[0]?1:0;st.push(v);cr+=v===3?1:v===2?0.8:v===1?0.4:0}
+        pos[t]=(pos[t]||0)+b[t];f[t]={st,cr:r1(cr)}});fill[r+'|'+c]=f;});});
   return fill;
 }
 
@@ -259,10 +272,11 @@ function renderGrid(){
     COLS.forEach(c=>{const key=r+'|'+c,b=BAYS[key];
       if(!b){h+='<div class="bay empty" aria-hidden="true"></div>';return}
       const f=fill[key]||{};let tot=0,dn=0,groups='';
-      Object.keys(b).forEach(t=>{tot+=b[t];dn+=f[t]||0;let sq='';for(let i=0;i<b[t];i++)sq+='<i class="sq'+(i<(f[t]||0)?' on':'')+'"></i>';
-        groups+='<div class="tg"><span class="c">'+t+'</span><div class="sqs" role="img" aria-label="'+t+': '+(f[t]||0)+' of '+b[t]+' done">'+sq+'</div></div>'});
-      const pct=tot?Math.round(100*dn/tot):0;
-      h+='<div class="bay'+(dn===tot&&tot?' full':'')+(S.sel===l?' sel':'')+'"><button type="button" class="bh" data-letter="'+l+'" aria-label="Open letter line '+l+' (bay '+c+' / '+r+')"><span>'+dn+'/'+tot+'</span><span>'+c+'</span></button><div class="bar"><i style="width:'+pct+'%"></i></div>'+groups+'</div>';});
+      Object.keys(b).forEach(t=>{const ft=f[t]||{st:[],cr:0};tot+=b[t];dn+=ft.cr;let sq='';for(let i=0;i<b[t];i++){const v=ft.st[i]||0;sq+='<i class="sq'+(v?' st'+v:'')+'"></i>'}
+        const cnt=[1,2,3].map(v=>ft.st.filter(x=>x===v).length);
+        groups+='<div class="tg"><span class="c">'+t+'</span><div class="sqs" role="img" aria-label="'+t+': '+b[t]+' drops, '+cnt[2]+' terminated, '+cnt[1]+' wire pulled, '+cnt[0]+' conduit or pipe only">'+sq+'</div></div>'});
+      dn=r1(dn);const pct=tot?Math.round(100*dn/tot):0;
+      h+='<div class="bay'+(dn>=tot&&tot?' full':'')+(S.sel===l?' sel':'')+'"><button type="button" class="bh" data-letter="'+l+'" aria-label="Open letter line '+l+' (bay '+c+' / '+r+')"><span>'+dn+'/'+tot+'</span><span>'+c+'</span></button><div class="bar"><i style="width:'+pct+'%"></i></div>'+groups+'</div>';});
     if(r==='N–M')h+='<div class="split">Print plan 1 above · plan 2 below</div>';});
   document.getElementById('grid').innerHTML=h;
 }
@@ -270,26 +284,32 @@ function renderKpis(){
   let scope=0,done=0,arch=0,today=0;
   LETTERS.forEach(l=>{const t=letterTotals(l);scope+=t.scope;done+=t.done;arch+=t.mhArch;today+=t.mhToday});
   const k=[
-    ['Drops complete',S.sheet?done+'/'+scope:'—',S.sheet?(scope?Math.round(100*done/scope):0)+'% of scope':'waiting for the sheet'],
+    ['Drops complete',S.sheet?r1(done)+'/'+scope:'—',S.sheet?(scope?Math.round(100*done/scope):0)+'% of scope':'waiting for the sheet'],
     ['Man-hours to date',S.rt||S.sheet?r1(arch+today):'—','earlier '+r1(arch)+' + '+dayWord()+' '+r1(today)],
-    ['MH per finished drop',done?r1((arch+today)/done):'—',done?'all drop types':'no drops marked done yet'],
+    ['MH per finished drop',done?r1((arch+today)/done):'—',done?'all drop types · partial steps count':'no drops started yet'],
     ['Drops done today',S.sheet?'—':'—','counted at tonight’s archive']].slice(0,3);
   document.getElementById('kpis').innerHTML=k.map(x=>'<div class="kpi"><span class="l">'+x[0]+'</span><span class="v">'+esc(x[1])+'</span><span class="s">'+esc(x[2])+'</span></div>').join('');
 }
 function printCount(t,l){let n=0;ROWS.filter(r=>rowLetter(r)===l).forEach(r=>COLS.forEach(c=>{const b=BAYS[r+'|'+c];if(b&&b[t])n+=b[t]}));return n}
 function renderSide(){
   const l=S.sel,T=letterTotals(l),el=document.getElementById('side');
-  let h='<div class="sh"><span class="t">Letter line '+l+'</span><span class="m">'+(S.sheet?T.done+' of '+T.scope+' drops done · ':'')+r1(T.mh)+' MH to date ('+r1(T.mhToday)+' '+dayWord()+')</span></div><div class="sb">';
+  let h='<div class="sh"><span class="t">Letter line '+l+'</span><span class="m">'+(S.sheet?r1(T.done)+' of '+T.scope+' drops done · ':'')+r1(T.mh)+' MH to date ('+r1(T.mhToday)+' '+dayWord()+')</span></div><div class="sb">';
   if(!S.sheet){h+='<div class="msg">'+(S.err.a?esc(S.err.a):'Loading line '+l+'…')+'</div></div>';el.innerHTML=h;return}
   const types=TYPES.filter(t=>S.sheet[t]&&S.sheet[t].L[l].scope>0);
   if(!types.length)h+='<div class="msg">The sheet has no drops on line '+l+'.</div>';
   h+='<span class="lab">Drops on this line</span>';
   types.forEach(t=>{const c=S.sheet[t].L[l],arch=(S.rt&&S.rt[t]&&S.rt[t][l])||0,open=S.open===t;
-    h+='<div class="trow"><div class="r1"><span class="code">'+t+'</span><span class="desc">'+esc(DESC[t])+'</span>'+
-      '<button class="stp" type="button" data-act="dec" data-t="'+t+'" aria-label="One fewer '+t+' done on '+l+'"'+(S.busy||c.done<=0?' disabled':'')+'>−</button>'+
-      '<span class="cnt">'+c.done+'/'+c.scope+'</span>'+
-      '<button class="stp" type="button" data-act="inc" data-t="'+t+'" aria-label="One more '+t+' done on '+l+'"'+(S.busy||c.done>=c.scope?' disabled':'')+'>+</button></div>'+
-      '<div class="today">'+r1(arch+c.mh)+' MH to date · '+dayWord()+': '+(c.crew.length?esc(c.crew.join(', '))+' × '+c.hrs+' h = '+r1(c.mh)+' MH':'no hours logged')+(c.dropsToday?' · '+(c.dropsToday>0?'+':'')+c.dropsToday+' done':'')+(c.by?' · by '+esc(c.by):'')+'</div>';
+    const s=c.s||[0,0,0],dd=c.d||[0,0,0];
+    let steps='<div class="steps">';
+    STEPS.forEach((nm,k)=>{const max=k?s[k-1]:c.scope,min=k<2?s[k+1]:0;
+      steps+='<div class="srow"><i class="sq st'+(k+1)+'"></i><span class="sn">'+nm+' <span>+'+STEP_PCT[k]+'%</span></span>'+
+        '<button class="stp" type="button" data-act="dec" data-k="'+(k+1)+'" data-t="'+t+'" aria-label="One fewer '+t+' at '+nm+' on '+l+'"'+(S.busy||s[k]<=min?' disabled':'')+'>−</button>'+
+        '<span class="cnt">'+s[k]+'/'+max+'</span>'+
+        '<button class="stp" type="button" data-act="inc" data-k="'+(k+1)+'" data-t="'+t+'" aria-label="One more '+t+' at '+nm+' on '+l+'"'+(S.busy||s[k]>=max?' disabled':'')+'>+</button></div>'});
+    steps+='</div>';
+    const moved=STEPS.map((nm,k)=>dd[k]?(dd[k]>0?'+':'')+dd[k]+' '+nm.toLowerCase():'').filter(Boolean).join(', ');
+    h+='<div class="trow"><div class="r1"><span class="code">'+t+'</span><span class="desc">'+esc(DESC[t])+'</span><span class="done">'+r1(c.done)+'/'+c.scope+'</span></div>'+steps+
+      '<div class="today">'+r1(arch+c.mh)+' MH to date · '+dayWord()+': '+(c.crew.length?esc(c.crew.join(', '))+' × '+c.hrs+' h = '+r1(c.mh)+' MH':'no hours logged')+(moved?' · '+esc(moved):'')+(c.by?' · by '+esc(c.by):'')+'</div>';
     if(open){const d=S.draft,cur=c.crew;
       h+='<div class="today">'+(d.mode==='replace'?'Editing '+dayWord()+'’s entry. Tap anyone who wasn’t on it to take them off.':(cur.length?'Adding people to '+dayWord()+'’s entry ('+esc(cur.join(', '))+' at '+c.hrs+' h each).':'Who worked '+t+' on line '+l+' '+dayWord()+'?'))+'</div>'+
         '<div class="crew" role="group" aria-label="Crew on '+t+'">'+S.crewNames.map(n=>{const already=d.mode==='add'&&cur.includes(n);const on=already||d.crew.includes(n);return '<button type="button" class="cr'+(on?' on':'')+'" data-act="crew" data-n="'+esc(n)+'" aria-pressed="'+on+'"'+(already?' disabled':'')+'>'+esc(n)+'</button>'}).join('')+'</div>'+
@@ -299,7 +319,7 @@ function renderSide(){
     else h+='<div><button class="btn" type="button" data-act="open" data-t="'+t+'"'+(S.busy?' disabled':'')+'>Log crew &amp; hours for '+dayWord()+'</button></div>';
     h+='</div>';});
   if(S.msg)h+='<div class="msg'+(S.msgBad?' bad':'')+'" role="status">'+esc(S.msg)+'</div>';
-  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Palestine Electrical Manhours Log</b> in Smartsheet (one row per day, line and drop type), and + / − copy the Done count to Palestine Breakpack Electric. Pick an earlier work date at the top to log a day you missed.</div></details>';
+  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Palestine Electrical Manhours Log</b> in Smartsheet (one row per day, line and drop type), and + / − copy the Done credit (40% conduit / pipe, 40% wire pulled, 20% terminated) to Palestine Breakpack Electric. Pick an earlier work date at the top to log a day you missed.</div></details>';
   h+='</div>';el.innerHTML=h;
 }
 function renderStatus(){
@@ -317,12 +337,12 @@ function renderTally(){
   let TS=0,TD=0,TM=0,TT=0,rows='';
   TYPES.forEach(t=>{const r=S.sheet[t];if(!r)return;let s=0,d=0,mh=0,today=0,lines='';
     LETTERS.forEach(l=>{const c=r.L[l];if(!c.scope)return;const dn=Math.min(c.done,c.scope);s+=c.scope;d+=dn;today+=c.mh;mh+=c.mh+((S.rt&&S.rt[t]&&S.rt[t][l])||0);
-      lines+='<button type="button" class="ln'+(dn>=c.scope?' full':'')+'" data-line="'+l+'" aria-label="Open line '+l+'">'+l+' '+dn+'/'+c.scope+'</button>'});
+      lines+='<button type="button" class="ln'+(dn>=c.scope?' full':'')+'" data-line="'+l+'" aria-label="Open line '+l+'">'+l+' '+r1(dn)+'/'+c.scope+'</button>'});
     if(!s)return;TS+=s;TD+=d;TM+=mh;TT+=today;const pct=Math.round(100*d/s);
-    rows+='<tr><td class="code">'+t+'</td><td class="desc">'+esc(DESC[t])+'</td><td><div class="pb"><div class="bar"><i style="width:'+pct+'%"></i></div><span>'+d+'/'+s+'</span></div></td><td><div class="lines">'+lines+'</div></td><td class="n">'+r1(today)+'</td><td class="n">'+r1(mh)+'</td><td class="n">'+(d?r1(mh/d):'—')+'</td></tr>'});
+    rows+='<tr><td class="code">'+t+'</td><td class="desc">'+esc(DESC[t])+'</td><td><div class="pb"><div class="bar"><i style="width:'+pct+'%"></i></div><span>'+r1(d)+'/'+s+'</span></div></td><td><div class="lines">'+lines+'</div></td><td class="n">'+r1(today)+'</td><td class="n">'+r1(mh)+'</td><td class="n">'+(d?r1(mh/d):'—')+'</td></tr>'});
   const pct=TS?Math.round(100*TD/TS):0;
   el.innerHTML='<thead><tr><th>Drop</th><th>Description</th><th>Done / scope</th><th>By letter line</th><th class="n">MH '+dayWord()+'</th><th class="n">MH to date</th><th class="n">MH / drop</th></tr></thead><tbody>'+rows+'</tbody>'+
-    '<tfoot><tr><td class="code">All</td><td class="desc">'+pct+'% complete</td><td><div class="pb"><div class="bar"><i style="width:'+pct+'%"></i></div><span>'+TD+'/'+TS+'</span></div></td><td></td><td class="n">'+r1(TT)+'</td><td class="n">'+r1(TM)+'</td><td class="n">'+(TD?r1(TM/TD):'—')+'</td></tr></tfoot>';
+    '<tfoot><tr><td class="code">All</td><td class="desc">'+pct+'% complete</td><td><div class="pb"><div class="bar"><i style="width:'+pct+'%"></i></div><span>'+r1(TD)+'/'+TS+'</span></div></td><td></td><td class="n">'+r1(TT)+'</td><td class="n">'+r1(TM)+'</td><td class="n">'+(TD?r1(TM/TD):'—')+'</td></tr></tfoot>';
 }
 function render(){renderStatus();renderKpis();renderGrid();renderSide();renderTally()}
 document.getElementById('tally').addEventListener('click',e=>{const b=e.target.closest('[data-line]');if(!b)return;S.sel=b.dataset.line;S.open=null;S.msg='';render();document.getElementById('side').scrollIntoView({behavior:'smooth',block:'start'})});
@@ -407,7 +427,7 @@ document.getElementById('grid').addEventListener('click',e=>{const b=e.target.cl
 function hoursInput(){const i=document.getElementById('hrs-'+S.open);return i?num(i.value):S.draft.hrs}
 document.getElementById('side').addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||!S.sheet||S.busy)return;const a=b.dataset.act,t=b.dataset.t||S.open,l=S.sel;
   const c=t&&S.sheet[t]?S.sheet[t].L[l]:null;
-  if(a==='inc'||a==='dec'){write('done',{type:t,letter:l,delta:a==='inc'?1:-1},r=>t+' on line '+l+': '+r.done+' of '+r.scope+' done.')}
+  if(a==='inc'||a==='dec'){const k=+b.dataset.k;write('step',{type:t,letter:l,step:k,delta:a==='inc'?1:-1},r=>t+' on line '+l+': '+STEPS[k-1].toLowerCase()+' '+r.s[k-1]+' · '+r1(r.done)+' of '+r.scope+' done.')}
   else if(a==='open'){S.open=t;S.conflict=null;S.msg='';S.draft={crew:[],hrs:c.hrs||10,mode:'add'};render()}
   else if(a==='replace'){S.draft={crew:c.crew.slice(),hrs:hoursInput(),mode:'replace'};S.conflict=null;render()}
   else if(a==='cancel'){S.open=null;S.conflict=null;S.msg='';render()}
