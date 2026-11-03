@@ -651,24 +651,58 @@ function catchReady(){
   if (!catchDate){ toast("Pick the date the work was done first.", null); $("catchdate").focus(); return false; }
   return true;
 }
-async function mark(ids, task, on){
+// Taps update the board instantly and go into a save queue; the queue sends them to the
+// server one batch at a time in the background, so crews can keep checking boxes while
+// earlier taps are still saving to Supabase/Smartsheet.
+const saveQ = [];               // [{ids, task, on, backfill, done_date}]
+let saving = false;
+function mark(ids, task, on){
   if (!ids.length) return;
   if (on && !catchReady()) { if (selected && ids.includes(selected)) renderSheet(); return; }
-  const before = ids.map(r => [r, new Set(PROG[r] || [])]);
   for (const r of ids){ const s = PROG[r] || (PROG[r] = new Set()); on ? s.add(task) : s.delete(task); pending.set(r, (pending.get(r) || 0) + 1); paint(r); }
-  summary(); if (selected && ids.includes(selected)) renderSheet();
-  try {
-    const res = await api("mark", catchUp && on ? { row_ids: ids, task, on, backfill: true, done_date: catchDate } : { row_ids: ids, task, on });
-    for (const [r, s] of Object.entries(res.progress || {})) PROG[r] = new Set(s ? s.split(" ") : []);
-    if (res.sync && res.sync.errors && res.sync.errors.length) toast("Saved on the board, but Smartsheet didn't update: " + res.sync.errors[0], null);
-  } catch(e){
-    for (const [r, s] of before) PROG[r] = s;
-    toast("Not saved: " + e.message, null);
-  } finally {
-    for (const r of ids){ pending.set(r, (pending.get(r) || 1) - 1); if (!pending.get(r)) pending.delete(r); paint(r); }
-    summary(); if (selected && ids.includes(selected)) renderSheet();
+  // a tap that reverses a queued, not-yet-sent tap cancels it instead of sending both
+  const q = saveQ.length && saveQ[saveQ.length - 1];
+  if (q && q.task === task && q.on !== on && q.ids.length === ids.length && q.ids.every((r, i) => r === ids[i])){
+    saveQ.pop();
+    for (const r of ids) settle(r, 2);
+  } else {
+    saveQ.push(catchUp && on ? { ids, task, on, backfill: true, done_date: catchDate } : { ids, task, on });
   }
+  summary(); if (selected && ids.includes(selected)) renderSheet();
+  saveStatus(); flushSaves();
 }
+function settle(r, n = 1){ const c = (pending.get(r) || n) - n; if (c > 0) pending.set(r, c); else pending.delete(r); paint(r); }
+function saveStatus(){
+  const n = saveQ.length + (saving ? 1 : 0);
+  if (n) setStatus("Saving " + n + (n === 1 ? " change…" : " changes…"));
+  else setStatus("Live · saved " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
+}
+async function flushSaves(){
+  if (saving || !saveQ.length) return;
+  saving = true;
+  const op = saveQ.shift();
+  let failed = null, syncErr = null, res = null;
+  try {
+    res = await api("mark", op.backfill ? { row_ids: op.ids, task: op.task, on: op.on, backfill: true, done_date: op.done_date } : { row_ids: op.ids, task: op.task, on: op.on });
+    if (res.sync && res.sync.errors && res.sync.errors.length) syncErr = res.sync.errors[0];
+  } catch(e){ failed = e; }
+  for (const r of op.ids) settle(r);
+  // only take the server's copy for rows with nothing else still waiting to save
+  if (res) for (const [r, s] of Object.entries(res.progress || {})) if (!pending.get(Number(r))) PROG[r] = new Set(s ? s.split(" ") : []);
+  saving = false;
+  if (failed){
+    // drop everything still queued and put the board back to what the server has
+    for (const q of saveQ.splice(0)) for (const r of q.ids) settle(r);
+    try { const d = await api("poll"); applyLive(d); } catch(e){}
+    paintAll();
+    toast("Not saved: " + failed.message + " — board reset to the last saved state.", null);
+  } else if (syncErr) toast("Saved on the board, but Smartsheet didn't update: " + syncErr, null);
+  const sel = selected && (failed || op.ids.includes(selected));
+  summary(); if (sel && !pending.get(selected)) renderSheet();
+  saveStatus();
+  flushSaves();
+}
+window.addEventListener("beforeunload", e => { if (saving || saveQ.length){ e.preventDefault(); e.returnValue = ""; } });
 
 async function togglePlan(ids){
   const ws = weekStart(planWeek);
@@ -712,7 +746,7 @@ function renderSheet(){
   for (const t of tasksFor(it)){
     const d = done(it.row_id, t);
     const lab = el("label", "stg" + (d ? " done" : "")); lab.style.setProperty("--c", color(t));
-    const cb = el("input"); cb.type = "checkbox"; cb.checked = d; cb.disabled = !isCrew() || !!pending.get(it.row_id);
+    const cb = el("input"); cb.type = "checkbox"; cb.checked = d; cb.disabled = !isCrew();
     cb.addEventListener("change", () => mark([it.row_id], t, cb.checked));
     lab.append(cb, el("span", null, TASK[t].name), el("span", "w", Math.round(w[t] / tot * 100) + "%"));
     if (d && byTask[t]) lab.append(el("span", "who", byTask[t].backfill ? `Catch-up · done ${new Date(byTask[t].done_at).toLocaleDateString([], { month: "short", day: "numeric" })} · ${byTask[t].done_by || ""}` : [fmtWhen(byTask[t].done_at), byTask[t].done_by].filter(Boolean).join(" · ")));
