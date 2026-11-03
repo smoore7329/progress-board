@@ -549,8 +549,78 @@ function planSummary(){
   if (late.length) card("Carried over (earlier weeks, unfinished)", "var(--late)", late);
   for (let i = 0; i < PLAN_WEEKS; i++) card(weekLabel(i), `var(--plan${i})`, Object.keys(PLAN).filter(r => PLAN[r].week_start === weekStart(i)), () => { planWeek = i; buildLayers(); hint(); paintAll(); });
   box.append(wk);
+  const pb = el("button", "btn", planWeek < 0 ? "Print lookahead (all weeks)" : "Print lookahead · " + weekLabel(planWeek)); pb.type = "button";
+  pb.style.cssText = "grid-column:1/-1;justify-self:start";
+  pb.addEventListener("click", printLookahead); box.append(pb);
   for (const c of CARDS) c._pct.textContent = fmtPct(groupPct(c._ids));
   for (const a of AREAS) a.pct.textContent = fmtPct(groupPct(a.cards.flatMap(c => c._ids))) + " installed";
+}
+
+/* ---------- printable lookahead ---------- */
+// Opens a clean page for the selected week (or all 4 weeks + carry-over) and prints it.
+// Grouped by phase, one line per aisle/area row: bays planned, install % so far, tasks still left.
+function printLookahead(){
+  const esc = x => String(x ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const order = [...SQ.keys()];                      // board order
+  const weeks = [];
+  if (planWeek < 0){
+    const late = order.filter(r => planClass(r) === "planlate");
+    if (late.length) weeks.push(["Carried over — planned in an earlier week, not finished", late, true]);
+    for (let i = 0; i < PLAN_WEEKS; i++) weeks.push([weekLabel(i), order.filter(r => PLAN[r]?.week_start === weekStart(i))]);
+  } else weeks.push([weekLabel(planWeek), order.filter(r => PLAN[r]?.week_start === weekStart(planWeek))]);
+  if (!weeks.some(w => w[1].length)) return toast("Nothing is planned for " + (planWeek < 0 ? "the next 4 weeks" : weekLabel(planWeek)) + " yet.", null);
+  const pctTxt = p => Math.round(p * 100) + "%";
+  let body = "";
+  for (const [label, ids, late] of weeks){
+    if (!ids.length){ if (planWeek >= 0 || !late) body += `<h2>${esc(label)}</h2><p class="none">Nothing planned.</p>`; continue; }
+    let bays = 0, got = 0; for (const r of ids){ const it = ITEM.get(r); bays += it.bays || 1; got += (it.bays || 1) * pctOf(it); }
+    body += `<h2${late ? ' class="late"' : ""}>${esc(label)}<span>${ids.length} square${ids.length === 1 ? "" : "s"} · ${Math.round(bays)} bays · ${pctTxt(bays ? got / bays : 0)} installed so far</span></h2>`;
+    // phase -> row name -> items
+    const phases = new Map();
+    for (const r of ids){ const it = ITEM.get(r); const ph = it.phase || it.area || ""; if (!phases.has(ph)) phases.set(ph, new Map()); const rows = phases.get(ph); if (!rows.has(it.where)) rows.set(it.where, []); rows.get(it.where).push(it); }
+    for (const [ph, rows] of phases){
+      body += `<h3>${esc(ph)}</h3><table><thead><tr><th class="ck"></th><th>Aisle / area</th><th>Bays</th><th class="n">#</th><th class="n">Installed</th><th>Still to do</th><th class="crew">Crew / notes</th></tr></thead><tbody>`;
+      for (const [where, its] of rows){
+        let b = 0, g = 0; const left = new Map(); let started = false;
+        for (const it of its){
+          b += it.bays || 1; g += (it.bays || 1) * pctOf(it);
+          for (const t of tasksFor(it)){ if (done(it.row_id, t)) started = true; else left.set(t, (left.get(t) || 0) + 1); }
+        }
+        const pct = b ? g / b : 0;
+        let todo;
+        if (pct >= .9999) todo = '<span class="ok">Install complete</span>';
+        else if (!started) todo = "Not started — all tasks";
+        else todo = TASK_ORDER.filter(t => left.has(t)).map(t => esc(TASK[t].name) + (its.length > 1 && left.get(t) < its.length ? ` <small>(${left.get(t)} of ${its.length} left)</small>` : "")).join(", ");
+        const flags = its.filter(it => FLAGS[it.row_id]).map(it => esc(it.n) + (FLAGS[it.row_id].note ? ": " + esc(FLAGS[it.row_id].note) : ""));
+        if (flags.length) todo += `<div class="mm">Missing material — ${flags.join("; ")}</div>`;
+        body += `<tr><td class="ck">☐</td><td><b>${esc(where)}</b></td><td>${its.map(it => esc(it.n)).join(", ")}</td><td class="n">${Math.round(b)}</td><td class="n">${pctTxt(pct)}</td><td>${todo}</td><td class="crew"></td></tr>`;
+      }
+      body += "</tbody></table>";
+    }
+  }
+  const title = (S.site.name || "Site") + " — Lookahead";
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>
+@page{size:letter landscape;margin:.45in}
+body{font:12px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1d232a;background:#fff;margin:16px}
+.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1d232a;padding-bottom:6px;margin-bottom:4px}
+h1{font-size:18px;margin:0} .meta{color:#5b6670;font-size:11px;text-align:right}
+h2{font-size:15px;margin:18px 0 4px;padding:4px 8px;background:#efe8fa;border-left:5px solid #7a4fd0;display:flex;justify-content:space-between;gap:12px;align-items:baseline;break-after:avoid}
+h2.late{background:#fbe9e6;border-color:#c2412d} h2 span{font-size:11px;font-weight:500;color:#5b6670}
+h3{font-size:12.5px;margin:10px 0 3px;break-after:avoid}
+table{width:100%;border-collapse:collapse;margin-bottom:6px} tr{break-inside:avoid}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:#5b6670;border-bottom:1.5px solid #9aa4ad;padding:3px 6px}
+td{border-bottom:1px solid #d5dbe0;padding:5px 6px;vertical-align:top}
+.n{text-align:right;white-space:nowrap;width:1%} .ck{width:14px;font-size:14px;color:#5b6670} .crew{width:20%}
+td:nth-child(2){white-space:nowrap;width:1%} td:nth-child(3){width:22%}
+small{color:#5b6670} .ok{color:#2f8a57;font-weight:600} .mm{color:#a3330f;margin-top:3px;font-weight:600}
+.none{color:#5b6670;margin:2px 0 0 8px} .bar{margin:10px 0;display:flex;gap:8px} button{font:inherit;padding:6px 14px;border-radius:6px;border:1px solid #9aa4ad;background:#fff;cursor:pointer}
+@media print{.bar{display:none} body{margin:0}}
+</style></head><body><div class="bar"><button onclick="print()">Print / Save as PDF</button><button onclick="close()">Close</button></div>
+<div class="top"><h1>${esc(title)}</h1><div class="meta">Printed ${esc(new Date().toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }))}${auth?.name ? " · " + esc(auth.name) : ""}<br>Install % as of print time</div></div>
+${body}<script>addEventListener("load", () => setTimeout(print, 300));<\/script></body></html>`;
+  const w = window.open("", "_blank");
+  if (!w) return toast("Your browser blocked the print window — allow pop-ups for this site and try again.", null);
+  w.document.open(); w.document.write(html); w.document.close();
 }
 function summary(){
   if (tab === "plan") return planSummary();
