@@ -221,7 +221,7 @@ body.mapview #view-board #legend{order:-1}
 .mlab{position:absolute;pointer-events:none;transform:translate(-50%,-50%);background:color-mix(in srgb,var(--panel) 88%,transparent);border-radius:4px;padding:2px 6px;font:700 11px var(--f-body);white-space:nowrap;display:flex;gap:5px;align-items:center;z-index:3;color:var(--ink);letter-spacing:.02em}
 .mlab .p{font:500 11px var(--f-mono);color:var(--muted)}
 .mlab.v{writing-mode:vertical-rl;transform:translate(-50%,-50%) rotate(180deg)}
-.mfp{position:absolute;border:1px solid var(--line);border-radius:3px;background:repeating-linear-gradient(45deg,var(--panel) 0 4px,var(--empty) 4px 8px)}
+.mfp{position:absolute;pointer-events:none;border:1px solid var(--line);border-radius:3px;background:repeating-linear-gradient(45deg,var(--panel) 0 4px,var(--empty) 4px 8px)}
 .mfp.dash{background:none;border:1.5px dashed var(--line);border-radius:6px}
 .mfp>span{position:absolute;left:4px;top:1px;font:600 10px var(--f-body);color:var(--muted);white-space:nowrap}
 .mtag{position:absolute;font:600 10px var(--f-body);letter-spacing:.08em;color:var(--muted);white-space:nowrap}
@@ -652,7 +652,8 @@ function buildMap(){
       used = grid(code, "Rear Access", items, [880], 1081, 1205, 42.6, 44.4, 1)
         .concat(grid(code, "Rear Access", items, [881], 1086, 1161, 51.2, 53.4, 1))
         .concat(grid(code, "Rear Access", items, [882], 1756, 1770.6, 42.4, 55, 1));
-      const bx = el("div", "mfp dash"); bx.append(el("span", null, "Not on print")); put(bx, 1080, 1167, 50.2, 55.6, "fp");
+      const bx = el("div", "mfp dash"); bx.append(el("span", null, "Not on print")); put(bx, 1080, 1167, 50.2, 55.6, "fp"); map.prepend(bx);
+      const rc = SQ.get(881)?.querySelector(".tag"); if (rc) rc.textContent = "Rear Access\nCenter";
     } else if (code === "DDK001S") used = grid(code, "Delta Deck", items, [1111], 1195, 1548, -1.7, -0.15, 1);
     for (const i of items) if (!used.includes(i)) leftovers.push({ raw: i, where: g.name });
   }
