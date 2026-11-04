@@ -218,6 +218,7 @@ body.mapview #view-board #legend{order:-1}
 .sq.m{position:absolute;bottom:auto;border-radius:2px;background:color-mix(in srgb,var(--tint,var(--empty)) var(--tm),var(--empty));border-color:color-mix(in srgb,var(--ink) 22%,transparent)}
 .sq.m.na{background:repeating-linear-gradient(135deg,var(--empty) 0 3px,var(--hatch) 3px 6px)}
 .sq.m .tag{font:600 9px/1.1 var(--f-body);white-space:pre-line;text-align:center;color:var(--ink)}
+.sq.m .tag.vt{writing-mode:vertical-rl;transform:rotate(180deg)}
 .mlab{position:absolute;pointer-events:none;transform:translate(-50%,-50%);background:color-mix(in srgb,var(--panel) 88%,transparent);border-radius:4px;padding:2px 6px;font:700 11px var(--f-body);white-space:nowrap;display:flex;gap:5px;align-items:center;z-index:3;color:var(--ink);letter-spacing:.02em}
 .mlab .p{font:500 11px var(--f-mono);color:var(--muted)}
 .mlab.v{writing-mode:vertical-rl;transform:translate(-50%,-50%) rotate(180deg)}
@@ -653,7 +654,8 @@ function buildMap(){
         .concat(grid(code, "Rear Access", items, [881], 1086, 1161, 51.2, 53.4, 1))
         .concat(grid(code, "Rear Access", items, [882], 1756, 1770.6, 42.4, 55, 1));
       const bx = el("div", "mfp dash"); bx.append(el("span", null, "Not on print")); put(bx, 1080, 1167, 50.2, 55.6, "fp"); map.prepend(bx);
-      const rc = SQ.get(881)?.querySelector(".tag"); if (rc) rc.textContent = "Rear Access\nCenter";
+      const lab = (id, t, vert) => { const tg = SQ.get(id)?.querySelector(".tag"); if (tg){ tg.textContent = t; if (vert) tg.classList.add("vt"); } };
+      lab(881, "Rear Access\nCenter"); lab(880, "Rear Access West"); lab(882, "Rear Access East", true);
     } else if (code === "DDK001S") used = grid(code, "Delta Deck", items, [1111], 1195, 1548, -1.7, -0.15, 1);
     for (const i of items) if (!used.includes(i)) leftovers.push({ raw: i, where: g.name });
   }
@@ -712,7 +714,7 @@ function layoutMap(){
     if (o.kind === "sq" || o.kind === "fp"){
       s.left = X(o.x0).toFixed(1) + "px"; s.top = Y(o.v1).toFixed(1) + "px";
       s.width = Math.max(3, (o.x1 - o.x0) * kx - (o.kind === "sq" ? 1 : 0)).toFixed(1) + "px"; s.height = Math.max(3, (o.v1 - o.v0) * ky - (o.kind === "sq" ? 1 : 0)).toFixed(1) + "px";
-      if (o.kind === "sq"){ const tg = o.node.querySelector(".tag"); if (tg) tg.style.display = (o.x1 - o.x0) * kx > 30 && (o.v1 - o.v0) * ky > 18 ? "" : "none"; }
+      if (o.kind === "sq"){ const tg = o.node.querySelector(".tag"); if (tg){ const w = (o.x1 - o.x0) * kx, hh = (o.v1 - o.v0) * ky; tg.style.display = (tg.classList.contains("vt") ? w > 11 && hh > 80 : w > 30 && hh > 18) ? "" : "none"; } }
     } else if (o.kind === "ruler"){ s.left = "-46px"; s.top = Y(o.v0).toFixed(1) + "px"; }
     else if (o.kind === "tag"){ s.left = X(o.x0).toFixed(1) + "px"; s.top = (Y(o.v0) - 2).toFixed(1) + "px"; }
     else { s.left = X(o.x0).toFixed(1) + "px"; s.top = Y(o.v0).toFixed(1) + "px"; }
