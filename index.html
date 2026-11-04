@@ -233,6 +233,17 @@ body.mapview #view-board #legend{order:-1}
 .pctseg button.on{background:var(--work);border-color:var(--work);color:#fff}
 .pctseg button.cur{outline:2px solid var(--ink);outline-offset:2px}
 .pctseg button:disabled{cursor:default;opacity:.7}
+.pctseg.n10{grid-template-columns:repeat(10,minmax(0,1fr));gap:3px}
+.pctseg.n10 button{min-height:44px;font-size:12px;border-radius:5px;padding:0}
+.pctseg.n10 button.on{background:var(--c,var(--work));border-color:var(--c,var(--work))}
+.stepgrp{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:8px;padding:8px 10px;display:grid;gap:6px;background:var(--panel)}
+.stepgrp.done{background:color-mix(in srgb,var(--c) 10%,var(--panel))}
+.stephd{display:flex;gap:8px;align-items:baseline}
+.stephd span:first-child{font-weight:600}
+.stephd b{font:600 13px var(--f-mono)}
+.stephd .w{margin-left:auto;font:12px var(--f-mono);color:var(--muted)}
+.stepgrp .who{font-size:11px;color:var(--muted)}
+.stepgrp .stepnote{font-size:12px;color:var(--muted)}
 .rel{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
 .rel button{border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:500 12px var(--f-body);padding:6px 6px;min-height:44px;cursor:pointer;display:grid;gap:1px;text-align:center;position:relative;overflow:hidden}
 .rel button b{font:600 12px var(--f-mono)}
@@ -549,6 +560,11 @@ function buildLegend(isMap){
 // same layout rows as the list view, so RowIDs, painting, sheets and the lookahead are shared.
 const MAP_SITES = { palestine: true };
 const QT = new Set(["q25", "q50", "q75", "q100"]);   // quarter-step tasks (25/50/75/100%)
+// stepped tasks: keys "<base>_<n>" (tdj_10 … tdj_100) = one task (tdj) marked in % steps; they share its weight
+const stepBase = t => { const m = /^([a-z0-9]+)_(\d+)$/.exec(t); return m ? m[1] : null; };
+const stepsOf = (it, base) => tasksFor(it).filter(t => stepBase(t) === base);
+const appliesTo = (it, t) => tasksFor(it).includes(t) || stepsOf(it, t).length > 0;
+const isGroup = t => Object.values(W).some(w => Object.keys(w).some(k => stepBase(k) === t && w[k] > 0));
 let viewMode = store.get("view") || "map";
 let mapZoom = store.get("mapzoom") || 0;              // 0 = automatic
 const MAPPED = new Set();
@@ -764,8 +780,12 @@ function paint(rid){
     if (q && q.qc === "Pass") c = "var(--ok)"; else if (q && q.qc === "Fail") c = "var(--bad)"; else if (p >= .9999) c = "var(--warn)";
     fill.style.height = c ? "100%" : "0"; fill.style.setProperty("--c", c || "var(--empty)"); if (c) b.classList.add("full");
     title += "\n" + (q && q.qc ? "QC " + q.qc + (q.reason ? " – " + q.reason : "") : p >= .9999 ? "Waiting on QC" : "Install not complete");
-  } else if (!tasks.includes(layer)){
+  } else if (!appliesTo(it, layer)){
     b.classList.add("na"); fill.style.height = "0"; title += `\n${TASK[layer].name} doesn't apply here`;
+  } else if (stepsOf(it, layer).length){
+    const st = stepsOf(it, layer), f = st.filter(t => done(it.row_id, t)).length / st.length;
+    fill.style.height = (f * 100) + "%"; fill.style.setProperty("--c", color(layer)); if (f >= .5) b.classList.add("full");
+    title += `\n${TASK[layer].name}: ${Math.round(f * 100)}%`;
   } else {
     const d = done(it.row_id, layer);
     fill.style.height = d ? "100%" : "0"; fill.style.setProperty("--c", color(layer)); if (d) b.classList.add("full");
@@ -894,11 +914,11 @@ function summary(){
   let qt = 0, qp = 0, qw = 0; for (const rid of all){ qt++; const q = qcOf(rid); if (q?.qc === "Pass") qp++; else if (pctOf(ITEM.get(rid)) >= .9999) qw++; }
   add("qc", "QC passed", "var(--ok)", qt ? qp / qt * 100 : 0, `${qp}/${qt} · ${qw} waiting`);
   for (const t of TASK_ORDER){
-    if (QT.has(t)) continue;
+    if (QT.has(t) || stepBase(t)) continue;
     let tot = 0, got = 0;
-    for (const rid of all){ const it = ITEM.get(rid); if ((W[it.area_type] || {})[t] > 0){ tot++; if (done(rid, t)) got++; } }
+    for (const rid of all){ const it = ITEM.get(rid); if ((W[it.area_type] || {})[t] > 0){ tot++; if (done(rid, t)) got++; } else { const st = stepsOf(it, t); if (st.length){ tot++; got += st.filter(x => done(rid, x)).length / st.length; } } }
     if (!tot) continue;
-    add(t, TASK[t].name, color(t), got / tot * 100, `${got}/${tot}`);
+    add(t, TASK[t].name, color(t), got / tot * 100, `${Math.round(got * 10) / 10}/${tot}`);
   }
   const more = el("button", "more", document.body.classList.contains("alltotals") ? "Hide task totals ▴" : "Show all task totals ▾"); more.type = "button";
   more.addEventListener("click", () => { document.body.classList.toggle("alltotals"); summary(); }); box.append(more);
@@ -918,7 +938,7 @@ function buildLayers(){
     }
     return;
   }
-  const opts = [["all", "All (install %)"], ["qc", "QC"], ...TASK_ORDER.filter(t => !QT.has(t) && Object.values(W).some(w => w[t] > 0)).map(t => [t, TASK[t].name])];
+  const opts = [["all", "All (install %)"], ["qc", "QC"], ...TASK_ORDER.filter(t => !QT.has(t) && !stepBase(t) && (Object.values(W).some(w => w[t] > 0) || isGroup(t))).map(t => [t, TASK[t].name])];
   for (const [s, n] of opts){
     const c = el("button", "chip"); c.type = "button"; c.dataset.s = s;
     const d = el("span", "dot"); if (s === "qc") c.style.setProperty("--c", "var(--ok)"); else if (s !== "all") c.style.setProperty("--c", color(s));
@@ -946,6 +966,7 @@ function needSignIn(){ toast("Sign in with the site passcode to make changes.", 
 function onSquare(it){
   if (tab === "plan"){ if (planWeek < 0) return openSheet(it); if (!isCrew()) return needSignIn(); return togglePlan([it.row_id]); }
   if (layer !== "all" && layer !== "qc"){
+    if (stepsOf(it, layer).length) return openSheet(it);
     if (!tasksFor(it).includes(layer)) return;
     if (!isCrew()) return openSheet(it);
     const was = done(it.row_id, layer);
@@ -1088,8 +1109,32 @@ function renderSheet(){
     const last = qtasks.filter(t => done(it.row_id, t)).map(t => byTask[t]).filter(Boolean).sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)))[0];
     box.append(el("div", "meta", n >= qtasks.length ? "100% in place — QC gets flagged in Smartsheet." : "Tap the amount that's in place. Tap the current one again to step back." + (last ? " Last change " + [fmtWhen(last.done_at), last.done_by].filter(Boolean).join(" · ") : "")));
   }
-  for (const t of tasksFor(it)){
+  const order = []; { const seen = new Set(); for (const t of tasksFor(it)){ const k = stepBase(t) || t; if (!seen.has(k)){ seen.add(k); order.push(k); } } }
+  order.sort((a, b) => (TASK[a]?.sort ?? 999) - (TASK[b]?.sort ?? 999));
+  for (const t of order){
     if (QT.has(t)) continue;
+    const st = stepsOf(it, t);
+    if (st.length){
+      const n = st.filter(x => done(it.row_id, x)).length, ws = st.reduce((a, x) => a + (w[x] || 0), 0);
+      const g = el("div", "stepgrp" + (n >= st.length ? " done" : "")); g.style.setProperty("--c", color(t));
+      const hd = el("div", "stephd"); hd.append(el("span", null, TASK[t]?.name || t), el("b", null, Math.round(n / st.length * 100) + "%"), el("span", "w", Math.round(ws / tot * 100) + "%")); g.append(hd);
+      const seg = el("div", "pctseg n" + st.length);
+      st.forEach((x, i) => {
+        const b = el("button", (i < n ? "on" : "") + (i + 1 === n ? " cur" : ""), String(Math.round((i + 1) / st.length * 100))); b.type = "button"; b.disabled = !isCrew();
+        b.setAttribute("aria-label", `${TASK[t]?.name || t} ${b.textContent}%`); b.setAttribute("aria-pressed", String(i + 1 === n));
+        b.addEventListener("click", () => {
+          const target = i + 1 === n ? i : i + 1;
+          if (target > n && !catchReady()) return;
+          st.forEach((q, j) => { const want = j < target; if (done(it.row_id, q) !== want) mark([it.row_id], q, want); });
+        });
+        seg.append(b);
+      });
+      g.append(seg);
+      g.append(el("span", "stepnote", Math.round(100 / st.length) + "% per level"));
+      const last = st.filter(x => done(it.row_id, x)).map(x => byTask[x]).filter(Boolean).sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)))[0];
+      if (last) g.append(el("span", "who", [fmtWhen(last.done_at), last.done_by].filter(Boolean).join(" · ")));
+      box.append(g); continue;
+    }
     const d = done(it.row_id, t);
     const lab = el("label", "stg" + (d ? " done" : "")); lab.style.setProperty("--c", color(t));
     const cb = el("input"); cb.type = "checkbox"; cb.checked = d; cb.disabled = !isCrew();
