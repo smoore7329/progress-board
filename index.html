@@ -576,6 +576,9 @@ const M = {
     MBD004S:["MBD4","salmon"], MBD005S:["MBD5","yellow"], LCE001S:["LCE","orange"], LCW001S:["LCW","orange"], SNC001S:["S&C","blue"],
     REA001S:["RA","green"], DDK001S:["DD","grey"], MPH1:["MPH1","grey"], MPH2:["MPH2","grey"], MPH3:["MPH3","grey"]
   },
+  // bot aisles in front of the delta deck are numbered 1–31 while the product aisles beside them run 3–33:
+  // draw them 2 bays back so their fronts and backs line up with their neighbours
+  botShift: { A259: 2, A264: 2, A265: 2, A266: 2, A267: 2, A268: 2, A269: 2, A260: 2, A261: 2, A262: 2, A263: 2 },
   tint: { cyan:"#9fe6ee", pink:"#f0b4e6", green:"#b6e6a8", purple:"#c3b6e2", yellow:"#efe87a", salmon:"#f3c0b9", orange:"#f2c99c", blue:"#a9c6ef", grey:"#cfcfcb" }
 };
 const mnorm = s => String(s || "").replace(/ \(Bay [^)]*\)/, "").replace(/PA-(\d+)–PA-(\d+)/, "PA-$1–$2").trim();
@@ -613,7 +616,8 @@ function buildMap(){
       for (const i of r.items || []){
         const b0 = i.b ? i.b[0] : 1, b1 = i.b ? i.b[1] : b0;
         if (!col){ leftovers.push({ raw: i, where: nm }); continue; }
-        sqAt(i, code.startsWith("TW") ? ph.name.replace(/^.*– /, "") + " · " + nm : nm, code, col[0], col[1], b0 - 1, b1);
+        const off = M.botShift[nm] || 0;
+        sqAt(i, code.startsWith("TW") ? ph.name.replace(/^.*– /, "") + " · " + nm : nm, code, col[0], col[1], b0 - 1 + off, b1 + off);
       }
       for (const g of r.extra || []) (gratings[ph.name] ||= []).push({ k: g.k, n: nm + " · " + (g.t || g.n) });
     }
@@ -643,12 +647,12 @@ function buildMap(){
   };
   for (const g of B.other || []){
     const code = mcode(g.code); const items = g.items || []; let used = [];
-    if (code === "LCW001S") used = grid(code, "Lift Cell West", items, [828, 830, 984, 1085, 826, 1084], 1274, 1379, 32.6, 44.9, 2);
-    else if (code === "LCE001S") used = grid(code, "Lift Cell East", items, [827, 829, 1083, 983, 1082, 825], 1487, 1584, 32.6, 44.9, 2);
+    if (code === "LCW001S") used = grid(code, "Lift Cell West", items, [828, 830, 984, 1085, 826, 1084], 1274, 1379, 33, 44.5, 2);
+    else if (code === "LCE001S") used = grid(code, "Lift Cell East", items, [827, 829, 1083, 983, 1082, 825], 1487, 1584, 33, 44.5, 2);
     else if (code === "SNC001S"){
-      used = grid(code, "Settle & Close", items, [831, 832, 985], 1195, 1272, 37, 43, 1)
+      used = grid(code, "Settle & Close", items, [831, 832, 985], 1195, 1272, 37, 42.6, 1)
         .concat(grid(code, "Core steel", items, [833, 834], 1195, 1272, 33, 36.9, 2))
-        .concat(grid(code, "Core steel", items, [840], 1417, 1449, 0, 1.85, 1));
+        .concat(grid(code, "Core steel", items, [840], 1417, 1449, -1.7, -0.1, 1));
     } else if (code === "REA001S"){
       used = grid(code, "Rear Access", items, [880], 1081, 1205, 42.6, 44.4, 1)
         .concat(grid(code, "Rear Access", items, [881], 1086, 1161, 51.2, 53.4, 1))
@@ -656,7 +660,12 @@ function buildMap(){
       const bx = el("div", "mfp dash"); bx.append(el("span", null, "Not on print")); put(bx, 1080, 1167, 50.2, 55.6, "fp"); map.prepend(bx);
       const lab = (id, t, vert) => { const tg = SQ.get(id)?.querySelector(".tag"); if (tg){ tg.textContent = t; if (vert) tg.classList.add("vt"); } };
       lab(881, "Rear Access\nCenter"); lab(880, "Rear Access West"); lab(882, "Rear Access East", true);
-    } else if (code === "DDK001S") used = grid(code, "Delta Deck", items, [1111], 1195, 1548, -1.7, -0.15, 1);
+    } else if (code === "DDK001S"){
+      // the delta deck fills the front strip the deck-side aisles leave open (they start at Bay 3)
+      used = grid(code, "Delta Deck", items, [1111], 1194.5, 1548.1, 0, 1.9, 1);
+      const tg = SQ.get(1111)?.querySelector(".tag"); if (tg) tg.textContent = "Delta Deck";
+      const st = SQ.get(840)?.querySelector(".tag"); if (st) st.textContent = "Stair";
+    }
     for (const i of items) if (!used.includes(i)) leftovers.push({ raw: i, where: g.name });
   }
   // MPH mezzanines (gray areas around the induction on S13.00); MADD platforms stay in a card
@@ -680,7 +689,7 @@ function buildMap(){
     const isNum = /^Phase/.test(meta[0]); const lab = el("div", "mlab" + (isNum && code !== "PRA001S" && code !== "PRA006S" ? " v" : ""));
     lab.append(el("span", null, meta[0].toUpperCase()), pct); lab.title = "PSTX3BP" + code;
     let cx = (g.x0 + g.x1) / 2, cv = (g.v0 + g.v1) / 2;
-    if (code === "PRA001S"){ cx = 1660; cv = 1.4; } else if (code === "PRA006S"){ cx = 1210; cv = 1.4; } else if (isNum) cv = 12.5; else if (code === "SNC001S"){ cx = 1233; cv = 38; }
+    if (code === "PRA001S"){ cx = 1660; cv = 1.4; } else if (code === "PRA006S"){ cx = 1137; cv = 1.4; } else if (isNum) cv = 12.5; else if (code === "SNC001S"){ cx = 1233; cv = 38; }
     put(lab, cx, cx, cv, cv, "lab");
   }
   CARDS.push(...phCards); AREAS.push({ pct: apct, cards: phCards });
