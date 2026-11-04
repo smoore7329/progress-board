@@ -81,8 +81,15 @@ h1{margin:0;font-size:30px;font-weight:700;text-wrap:balance}
 .tg .c{font:600 10px var(--mono);color:var(--muted);min-width:24px;padding-top:1px}
 .sqs{display:flex;flex-wrap:wrap;gap:2px}
 .sq{width:11px;height:11px;border-radius:2px;border:1.5px solid var(--sq-off-border);background:var(--panel);display:inline-block}
-.sq.on{background:var(--done);border-color:var(--done)}
-.sq.pt{border-color:var(--part)}
+.sq.st1{background:#E8742A;border-color:#B5541A}
+.sq.st2{background:#F2C200;border-color:#B38F00}
+.sq.st3{background:#3E8E2A;border-color:#2C6B1C}
+.steps{display:flex;flex-direction:column;gap:6px}
+.srow{display:flex;align-items:center;gap:8px}
+.srow .sq{width:14px;height:14px;flex:none}
+.srow .sn{flex:1;min-width:0;font-size:13px}
+.srow .sn span{color:var(--muted);font-size:12px}
+.trow .done{font:600 14px var(--mono);font-variant-numeric:tabular-nums}
 .ra-grid{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:flex-start}
 .side{flex:1 1 380px;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;position:sticky;top:env(safe-area-inset-top,0px)}
 .sh{background:var(--head);color:var(--head-ink);padding:14px 16px;display:flex;flex-direction:column;gap:3px}
@@ -168,9 +175,11 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
   </div>
 
   <div class="legend">
-    <span><i class="sq on"></i> Done</span>
-    <span><i class="sq pt" style="background:linear-gradient(90deg,var(--part) 50%,var(--panel) 50%)"></i> Partly done (quarter steps)</span>
+    <span><i class="sq st1"></i> Conduit / pipe · 40%</span>
+    <span><i class="sq st2"></i> Wire pulled · 80%</span>
+    <span><i class="sq st3"></i> Terminated · 100%</span>
     <span><i class="sq"></i> Not started</span>
+    <span>Done = 40% conduit / pipe + 40% wire pulled + 20% terminated</span>
   </div>
 
   <section class="tally" aria-labelledby="tally-h">
@@ -210,7 +219,7 @@ const CONFIG={
   url:'https://vbfspyruvaoqmhuutphl.supabase.co/functions/v1/buckeye-electric-api',
   key:'sb_publishable_X6AsZvhKdglY2PBYvyb-aw_1vnfYbe3' // publishable key: safe to be public
 };
-const STEP=0.25;
+const STEPS=['Conduit / pipe','Wire pulled','Terminated'],STEP_PCT=[40,40,20];
 const DESC={A2:"Product 5 mastless lift drive/ctrl",B1:"Product lift ctrl (UPS)",C:"DVR monitor",D:"Bot charging system",E:"Bot lift",F:"Bot lift control, tech area",FL5:"FLIB UPS connection",FL6:"FLIB standard power",FL7:"XIB PDP cabinet",H:"Maint. areas, laptops, accessories",J:"Safety deck access (UPS)",K1:"Safety aisle access (UPS)",L1:"Safety driveway gate (UPS)",MM:"Network IDF switch (UPS)",N:"Network IDF air cond",P:"Adapter cell network/PLC (UPS)",R1:"Inbound man (MCP001)",S2:"Inbound cell singulator (PDP001)",T2:"Inbound cell (PDP002)",V:"Inbound cell standard power",W1:"Outbound cell lower level (PDP001)",XX:"Aisle/driveway lighting",Y2:"Outbound empty pallet conveyor",Z:"Outbound standard power"};
 const ORDER=Object.keys(DESC);
 const INFO={"233":["AOB","H9/L9"],"232":["AOB","H8/L8"],"231":["AOB","H7/L7"],"230":["AOB","H7/L7"],"229":["AIB · MIB","H10/L10"],"228":["AIB","H10/L10"],"227":["XIB","H9/L9"],"226":["XIB","H8/L8"],"225":["XIB","H7/L7"],"224":["AOB","H9/L9"],"223":["AOB","H8/L8"],"222":["AOB","H7/L7"],"221":["AOB","H7/L7"],"BL202":["Bot lift","H8/L8"],"220":["AIB · MIB","H10/L10"],"RA":["Deck, rows A–D",""]};
@@ -230,10 +239,10 @@ const dayWord=()=>(!S.date||!S.data||S.date===S.data.today)?'today':new Date(S.d
 function tot(l){let d=0,s=0,mh=0,mhDay=0;const T=types(l);for(const k in T){const c=T[k];d+=Math.min(c.done,c.scope);s+=c.scope;mh+=c.mhTotal;mhDay+=c.mh}return{d,s,mh,mhDay}}
 
 // ---------- rendering ----------
-function squares(done,scope){let h='';for(let i=0;i<scope;i++){const f=Math.max(0,Math.min(1,done-i));
-  if(f>=1)h+='<i class="sq on"></i>';else if(f>0)h+='<i class="sq pt" style="background:linear-gradient(90deg,var(--part) '+(f*100)+'%,var(--panel) '+(f*100)+'%)"></i>';else h+='<i class="sq"></i>'}return h}
+// terminated (green) first, then wire pulled (yellow), then conduit / pipe (orange)
+function squares(s,scope){s=s||[0,0,0];let h='';for(let i=0;i<scope;i++){const v=i<s[2]?3:i<s[1]?2:i<s[0]?1:0;h+='<i class="sq'+(v?' st'+v:'')+'"></i>'}return h}
 function typeRows(l){const T=types(l);return ORDER.filter(k=>T[k]).map(k=>{const c=T[k];
-  return '<div class="tg" title="'+esc(k+' '+DESC[k]+': '+fmt(c.done)+' of '+c.scope)+'"><span class="c">'+k+'</span><span class="sqs" role="img" aria-label="'+esc(k+': '+fmt(c.done)+' of '+c.scope+' done')+'">'+squares(c.done,c.scope)+'</span></div>'}).join('')}
+  return '<div class="tg" title="'+esc(k+' '+DESC[k]+': '+fmt(c.done)+' of '+c.scope)+'"><span class="c">'+k+'</span><span class="sqs" role="img" aria-label="'+esc(k+': '+c.scope+' drops, '+c.s[2]+' terminated, '+(c.s[1]-c.s[2])+' wire pulled, '+(c.s[0]-c.s[1])+' conduit or pipe only')+'">'+squares(c.s,c.scope)+'</span></div>'}).join('')}
 function card(l,extraStyle){const t=tot(l),p=t.s?t.d/t.s:0;
   return '<button type="button" class="cell'+(l===S.sel?' sel':'')+(t.s&&p>=1?' full':'')+'" data-loc="'+l+'"'+(extraStyle?' style="'+extraStyle+'"':'')+'>'+
    '<div class="nm"><span>'+esc(locName(l))+'</span><span>'+fmt(t.d)+'/'+t.s+'</span></div>'+
@@ -258,8 +267,8 @@ function renderKpis(){
   const k=[
     ['Drops done',has?fmt(d)+' / '+s:'—',has?(s?(d/s*100).toFixed(1):0)+'% of Phase 2A scope':'waiting for the board'],
     ['Man-hours to date',has?r1(mh):'—',has?r1(mhDay)+' MH '+dayWord():''],
-    ['MH per finished drop',has&&d?r1(mh/d):'—',has?(d?'all drop types':'no drops done yet'):''],
-    ['Drops done '+dayWord(),has?(dropsDay>0?'+':'')+fmt(dropsDay):'—','marked done on the board']];
+    ['MH per finished drop',has&&d?r1(mh/d):'—',has?(d?'all drop types · partial steps count':'no drops started yet'):''],
+    ['Drops done '+dayWord(),has?(dropsDay>0?'+':'')+fmt(r1(dropsDay)):'—','step credit moved on the board']];
   document.getElementById('kpis').innerHTML=k.map(x=>'<div class="kpi"><span class="l">'+esc(x[0])+'</span><span class="v">'+esc(x[1])+'</span><span class="s">'+esc(x[2])+'</span></div>').join('');
 }
 function renderSide(){
@@ -269,11 +278,17 @@ function renderSide(){
   const T=types(l);
   h+='<span class="lab">Drops on this cell · '+esc(dayWord())+'</span>';
   ORDER.filter(k=>T[k]).forEach(k=>{const c=T[k],open=S.open===k;
-    h+='<div class="trow'+(open?' open':'')+'"><div class="r1"><span class="code">'+k+'</span><span class="desc">'+esc(DESC[k])+'</span>'+
-      '<button class="stp" type="button" data-act="dec" data-t="'+k+'" aria-label="Quarter less '+k+' done on '+esc(locName(l))+'"'+(S.busy||c.done<=0?' disabled':'')+'>−</button>'+
-      '<span class="cnt">'+fmt(c.done)+'/'+c.scope+'</span>'+
-      '<button class="stp" type="button" data-act="inc" data-t="'+k+'" aria-label="Quarter more '+k+' done on '+esc(locName(l))+'"'+(S.busy||c.done>=c.scope?' disabled':'')+'>+</button></div>'+
-      '<div class="today">'+r1(c.mhTotal)+' MH to date · '+esc(dayWord())+': '+(c.crew.length?esc(c.crew.join(', '))+' × '+c.hrs+' h = '+r1(c.mh)+' MH':'no hours logged')+(c.dropsToday?' · '+(c.dropsToday>0?'+':'')+fmt(c.dropsToday)+' done':'')+(c.by?' · by '+esc(c.by):'')+'</div>';
+    const s=c.s||[0,0,0],dd=c.d||[0,0,0];
+    let steps='<div class="steps">';
+    STEPS.forEach((nmS,i)=>{const max=i?s[i-1]:c.scope,min=i<2?s[i+1]:0;
+      steps+='<div class="srow"><i class="sq st'+(i+1)+'"></i><span class="sn">'+nmS+' <span>+'+STEP_PCT[i]+'%</span></span>'+
+        '<button class="stp" type="button" data-act="dec" data-k="'+(i+1)+'" data-t="'+k+'" aria-label="One fewer '+k+' at '+nmS+' on '+esc(locName(l))+'"'+(s[i]<=min?' disabled':'')+'>−</button>'+
+        '<span class="cnt">'+s[i]+'/'+max+'</span>'+
+        '<button class="stp" type="button" data-act="inc" data-k="'+(i+1)+'" data-t="'+k+'" aria-label="One more '+k+' at '+nmS+' on '+esc(locName(l))+'"'+(s[i]>=max?' disabled':'')+'>+</button></div>'});
+    steps+='</div>';
+    const moved=STEPS.map((nmS,i)=>dd[i]?(dd[i]>0?'+':'')+dd[i]+' '+nmS.toLowerCase():'').filter(Boolean).join(', ');
+    h+='<div class="trow'+(open?' open':'')+'"><div class="r1"><span class="code">'+k+'</span><span class="desc">'+esc(DESC[k])+'</span><span class="done">'+fmt(c.done)+'/'+c.scope+'</span></div>'+steps+
+      '<div class="today">'+r1(c.mhTotal)+' MH to date · '+esc(dayWord())+': '+(c.crew.length?esc(c.crew.join(', '))+' × '+c.hrs+' h = '+r1(c.mh)+' MH':'no hours logged')+(moved?' · '+esc(moved):'')+(c.by?' · by '+esc(c.by):'')+'</div>';
     if(open){const d=S.draft,cur=c.crew;
       h+='<div class="today">'+(d.mode==='replace'?'Editing '+esc(dayWord())+'’s entry. Click anyone who wasn’t on it to take them off.':(cur.length?'Adding people to '+esc(dayWord())+'’s entry ('+esc(cur.join(', '))+' at '+c.hrs+' h each).':'Who worked '+k+' on '+esc(locName(l))+' '+esc(dayWord())+'?'))+'</div>'+
         '<div class="crew" role="group" aria-label="Crew on '+k+'">'+S.data.crewNames.map(nm=>{const already=d.mode==='add'&&cur.includes(nm);const on=already||d.crew.includes(nm);
@@ -287,7 +302,7 @@ function renderSide(){
     } else h+='<div><button class="btn" type="button" data-act="open" data-t="'+k+'"'+(S.busy?' disabled':'')+'>Log crew &amp; hours for '+esc(dayWord())+'</button></div>';
     h+='</div>';});
   if(S.msg)h+='<div class="msg'+(S.msgBad?' bad':'')+'" role="status">'+esc(S.msg)+'</div>';
-  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Buckeye Electrical Manhours Log</b> in Smartsheet (one row per day, cell and drop type), and + / − copies the Done count to <b>Master Power drops</b>. Hours are not copied to Master Power drops.</div></details>';
+  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Buckeye Electrical Manhours Log</b> in Smartsheet (one row per day, cell and drop type), and + / − copies the Done credit (40% conduit / pipe, 40% wire pulled, 20% terminated) to <b>Master Power drops</b> a few seconds later. Hours are not copied to Master Power drops.</div></details>';
   h+='</div>';el.innerHTML=h;
 }
 function renderTally(){
@@ -337,6 +352,31 @@ document.getElementById('gate-form').addEventListener('submit',e=>{e.preventDefa
 document.getElementById('signout').addEventListener('click',()=>{CODE='';store.del(CODE_KEY);S.data=null;render();showGate()});
 document.getElementById('wd').addEventListener('change',e=>{const v=e.target.value;if(!v)return;S.date=v;S.open=null;S.msg='';S.conflict=null;load()});
 
+// ---------- quick steps: show the click at once, save in order behind the scenes ----------
+let stepQueue=Promise.resolve(),stepsPending=0;
+const credit=s=>r1(0.4*s[0]+0.4*s[1]+0.2*s[2]);
+function stepClick(t,l,k,delta){
+  const c=types(l)[t];if(!c)return;
+  const s=(c.s||[0,0,0]).slice(),i=k-1,max=i?s[i-1]:c.scope,min=i<2?s[i+1]:0,v=s[i]+delta;
+  if(v>max||v<min)return;
+  const before=c.done;s[i]=v;c.s=s;c.done=credit(s);c.d=(c.d||[0,0,0]).slice();c.d[i]+=delta;c.dropsToday=r1(c.dropsToday+c.done-before);
+  stepsPending++;S.msg='Saving…';S.msgBad=false;render();
+  const payload={type:t,loc:l,step:k,delta},nm=locName(l);
+  stepQueue=stepQueue.then(async()=>{
+    try{
+      const r=await api('step',payload);stepsPending--;
+      if(!stepsPending){apply(r.data);S.msg=t+' on '+nm+': '+fmt(r.result.done)+' of '+r.result.scope+' done. Saved.';S.msgBad=false}
+    }catch(e){
+      stepsPending--;S.msgBad=true;
+      if(e.code==='wrong_code'){CODE='';store.del(CODE_KEY);showGate('The crew code changed. Enter the new one.');S.msg='Not saved.'}
+      else if(e instanceof TypeError)S.msg='Lost connection while saving. The board is reloading to show what was saved.';
+      else S.msg='Not saved: '+e.message+' The board reloaded to show the current numbers.';
+      if(!stepsPending){const m=S.msg;await load();S.msg=m;S.msgBad=true}
+    }
+    render();
+  });
+}
+
 let loading=false;
 async function load(){
   if(!CODE||!NAME){showGate();return}
@@ -350,8 +390,8 @@ async function load(){
   }
   loading=false;render();
 }
-setInterval(()=>{if(document.visibilityState==='visible'&&!S.busy&&!S.open)load()},60000);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!S.open)load()});
+setInterval(()=>{if(document.visibilityState==='visible'&&!S.busy&&!S.open&&!stepsPending)load()},60000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!S.open&&!stepsPending)load()});
 document.getElementById('refresh').addEventListener('click',()=>{S.msg='';load()});
 document.getElementById('banner').addEventListener('click',async e=>{if(!e.target.closest('[data-act="resync"]')||S.busy)return;
   S.busy=true;render();
@@ -363,7 +403,7 @@ async function write(action,payload,okText){
   S.busy=true;S.msg='Saving…';S.msgBad=false;S.conflict=null;render();
   try{
     const r=await api(action,payload);apply(r.data);S.open=null;
-    S.msg=okText(r.result)+(r.warning?' Saved on the board, but the copy to Smartsheet didn’t go through yet; it retries on the next save.':'');
+    S.msg=okText(r.result);
   }catch(e){
     S.msgBad=true;
     if(e.code==='hours_mismatch'){S.conflict={t:payload.type,hrs:e.body.hrs,crew:e.body.crew||[]};S.msg=''}
@@ -382,7 +422,7 @@ document.getElementById('tally').addEventListener('click',e=>{const b=e.target.c
 function hoursInput(){const i=document.getElementById('hrs-'+S.open);return i?num(i.value):S.draft.hrs}
 document.getElementById('side').addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||!S.data||S.busy)return;
   const a=b.dataset.act,t=b.dataset.t||S.open,l=S.sel,c=t?types(l)[t]:null,nm=locName(l);
-  if(a==='inc'||a==='dec')write('done',{type:t,loc:l,delta:a==='inc'?STEP:-STEP},r=>t+' on '+nm+': '+fmt(r.done)+' of '+r.scope+' done.');
+  if(a==='inc'||a==='dec')stepClick(t,l,+b.dataset.k,a==='inc'?1:-1);
   else if(a==='open'){S.open=t;S.conflict=null;S.msg='';S.draft={crew:[],hrs:c.hrs||10,mode:'add'};render()}
   else if(a==='replace'){S.draft={crew:c.crew.slice(),hrs:hoursInput(),mode:'replace'};S.conflict=null;render()}
   else if(a==='cancel'){S.open=null;S.conflict=null;S.msg='';render()}
