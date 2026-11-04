@@ -197,6 +197,46 @@ body.docked #summary .more{display:flex}
 .checklist label{display:flex;gap:8px;align-items:center;font-size:13px;padding:3px 4px}
 .checklist .grp{font:600 11px var(--f-body);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:6px 4px 2px}
 .skeleton{padding:40px 0;color:var(--muted);text-align:center}
+/* site map (laid out like the CWP print) */
+:root{--tm:72%}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--tm:34%}}
+:root[data-theme="dark"]{--tm:34%}
+.viewrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.viewtog{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;flex:none}
+.viewtog button{border:0;background:var(--bg);color:var(--muted);font:600 13px var(--f-body);padding:6px 14px;min-height:34px;cursor:pointer}
+.viewtog button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.mapcard{padding:10px 10px 12px}
+.maphead{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.maphead h3{margin:0}
+.maphead .zoom{margin-left:auto;display:flex;gap:4px;align-items:center}
+.maphead .zoom .btn{min-width:40px}
+.mapscroll{overflow:auto;max-width:100%;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.map{position:relative;margin:4px auto 6px}
+.mapscroll{padding-left:46px}
+body.mapview #view-board #areas{order:-2}
+body.mapview #view-board #legend{order:-1}
+.sq.m{position:absolute;bottom:auto;border-radius:2px;background:color-mix(in srgb,var(--tint,var(--empty)) var(--tm),var(--empty));border-color:color-mix(in srgb,var(--ink) 22%,transparent)}
+.sq.m.na{background:repeating-linear-gradient(135deg,var(--empty) 0 3px,var(--hatch) 3px 6px)}
+.sq.m .tag{font:600 9px/1.1 var(--f-body);white-space:pre-line;text-align:center;color:var(--ink)}
+.mlab{position:absolute;pointer-events:none;transform:translate(-50%,-50%);background:color-mix(in srgb,var(--panel) 88%,transparent);border-radius:4px;padding:2px 6px;font:700 11px var(--f-body);white-space:nowrap;display:flex;gap:5px;align-items:center;z-index:3;color:var(--ink);letter-spacing:.02em}
+.mlab .p{font:500 11px var(--f-mono);color:var(--muted)}
+.mlab.v{writing-mode:vertical-rl;transform:translate(-50%,-50%) rotate(180deg)}
+.mfp{position:absolute;border:1px solid var(--line);border-radius:3px;background:repeating-linear-gradient(45deg,var(--panel) 0 4px,var(--empty) 4px 8px)}
+.mfp.dash{background:none;border:1.5px dashed var(--line);border-radius:6px}
+.mfp>span{position:absolute;left:4px;top:1px;font:600 10px var(--f-body);color:var(--muted);white-space:nowrap}
+.mtag{position:absolute;font:600 10px var(--f-body);letter-spacing:.08em;color:var(--muted);white-space:nowrap}
+.mtag.dir{color:var(--accent);background:color-mix(in srgb,var(--panel) 85%,transparent);padding:1px 4px;border-radius:3px;z-index:3}
+.mruler{position:absolute;font:10px var(--f-mono);color:var(--muted);transform:translateY(-50%);white-space:nowrap}
+.pctseg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.pctseg button{min-height:52px;border-radius:8px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:600 16px var(--f-mono);cursor:pointer}
+.pctseg button.on{background:var(--work);border-color:var(--work);color:#fff}
+.pctseg button.cur{outline:2px solid var(--ink);outline-offset:2px}
+.pctseg button:disabled{cursor:default;opacity:.7}
+.rel{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
+.rel button{border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:500 12px var(--f-body);padding:6px 6px;min-height:44px;cursor:pointer;display:grid;gap:1px;text-align:center;position:relative;overflow:hidden}
+.rel button b{font:600 12px var(--f-mono)}
+.rel button .rf{position:absolute;left:0;bottom:0;height:4px;background:var(--work)}
+.rel button.done{border-color:var(--ok)}
 @media (max-width:560px){
   h1{font-size:22px}.arow{grid-template-columns:96px 1fr 60px}
   .sheet{left:0;right:0;bottom:0;width:100%;border-radius:12px 12px 0 0;max-height:78vh;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
@@ -229,6 +269,9 @@ body.docked #summary .more{display:flex}
   </div>
 </header>
 <div class="wrap" id="boardbar" style="background:var(--panel);border-bottom:1px solid var(--line);padding-block:8px;position:sticky;top:var(--hdr,96px);z-index:19;display:grid;gap:6px">
+  <div class="viewrow" id="viewrow" hidden>
+    <span class="viewtog" role="group" aria-label="Board view"><button type="button" data-v="map">Site map</button><button type="button" data-v="list">List</button></span>
+  </div>
   <div class="layers" id="layers" role="toolbar" aria-label="Layer"></div>
   <div class="modehint" id="modehint"></div>
   <div class="catchbar" id="catchbar" hidden>
@@ -454,7 +497,20 @@ function area(title, nodes, cards){
   $("areas").append(wrap);
 }
 function buildBoard(){
-  const B = S.layout; $("areas").textContent = ""; SQ.clear(); CARDS.length = 0; AREAS.length = 0; ROWS.length = 0; ITEMS_BY_KEY.clear();
+  const B = S.layout; $("areas").textContent = ""; SQ.clear(); CARDS.length = 0; AREAS.length = 0; ROWS.length = 0; ITEMS_BY_KEY.clear(); MAPEL = null; MAPPED.clear();
+  $("viewrow").hidden = !MAP_SITES[CFG.site];
+  for (const b of document.querySelectorAll(".viewtog button")) b.setAttribute("aria-pressed", String(b.dataset.v === (mapOn() ? "map" : "list")));
+  document.body.classList.toggle("mapview", mapOn());
+  if (mapOn()){
+    buildMap();
+    const missing = [...ITEM.values()].filter(it => !it.key);
+    if (missing.length){
+      const groups = {}; for (const it of missing) (groups[it.area] ||= []).push({ k: "r" + it.row_id, n: it.label || ("Row " + it.row_id) });
+      const [ob, oc] = otherCards(Object.entries(groups).map(([name, items]) => ({ name, items })));
+      area("Not on the layout yet", [ob], oc);
+    }
+    return buildLegend(true);
+  }
   const mb = list => Math.max(...list.flatMap(ph => ph.rows.flatMap(r => r.items.map(i => i.b ? i.b[1] : 0))));
   if (B.aisles?.length){ const ac = B.aisles.map(ph => aisleCard(ph, mb(B.aisles))); area("Product & bot aisles", ac, ac); }
   if (B.tote?.length){ const tc = B.tote.map(ph => aisleCard(ph, mb(B.tote))); area("Tote walls", tc, tc); }
@@ -473,9 +529,12 @@ function buildBoard(){
     const [ob, oc] = otherCards(Object.entries(groups).map(([name, items]) => ({ name, items })));
     area("Not on the layout yet", [ob], oc);
   }
+  buildLegend(false);
+}
+function buildLegend(isMap){
   const lg = $("legend"); lg.textContent = "";
   const mk = (label, style) => { const s = el("span"); const i = el("i"); if (style) i.style.cssText = style; s.append(i, document.createTextNode(label)); lg.append(s); };
-  mk("Not started"); mk("Fill = weighted install %", "background:linear-gradient(to top,var(--work) 45%,var(--empty) 45%)");
+  if (isMap) mk("Not started (print phase colour)", "background:" + M.tint.cyan); else mk("Not started"); mk("Fill = weighted install %", "background:linear-gradient(to top,var(--work) 45%,var(--empty) 45%)");
   mk("QC passed (green dot)", "border-color:var(--ok)"); mk("QC failed (red)", "border:2px solid var(--bad)");
   mk("Missing material (orange corner)", "background:linear-gradient(135deg,var(--warn) 30%,var(--empty) 30%)");
   mk("Planned this week", "box-shadow:inset 0 0 0 2px var(--plan0)"); mk("Next week", "box-shadow:inset 0 0 0 2px var(--plan1)");
@@ -483,11 +542,195 @@ function buildBoard(){
   mk("Doesn't apply", "background:repeating-linear-gradient(135deg,var(--empty) 0 3px,var(--hatch) 3px 6px)");
 }
 
+/* ---------- site map: squares placed like CWP diagram 250-04877 Rev C (+ S13.00) ---------- */
+// Coordinates: x = points measured off the CWP print (west 1077 -> east 1802),
+// v = bay units from the delta deck (0) toward the rear wall (~57). Squares come from the
+// same layout rows as the list view, so RowIDs, painting, sheets and the lookahead are shared.
+const MAP_SITES = { palestine: true };
+const QT = new Set(["q25", "q50", "q75", "q100"]);   // quarter-step tasks (25/50/75/100%)
+let viewMode = store.get("view") || "map";
+let mapZoom = store.get("mapzoom") || 0;              // 0 = automatic
+const MAPPED = new Set();
+let MAPEL = null;
+const mapOn = () => viewMode === "map" && !!MAP_SITES[CFG.site] && !!S?.layout;
+const M = {
+  x0: 1077, x1: 1802, vTop: 57.8, vMin: -2, ky: 12.68,
+  strips: [
+    ["PRA010S", 1081, 1145, ["PA-054–055","A274","PA-052–053","A273","PA-050–051","A272"]],
+    ["PRA009S", 1147, 1218, ["PA-048–049","A271","PA-046–047","A270","PA-044–045","A269"]],
+    ["PRA008S", 1221, 1292, ["PA-042–043","A268","PA-040–041","A267","PA-038–039","A266"]],
+    ["PRA007S", 1294, 1341, ["PA-036–037","A265","PA-034–035","A264"]],
+    ["TWW001S", 1342, 1378, ["Line A (PA-032–033)","A263","Line B (PA-029–030)","A262"]],
+    ["TWE001S", 1488, 1524, ["A261","Line B (PA-027–028)","A260","Line A (PA-024–025)"]],
+    ["PRA005S", 1525, 1606, ["A259","PA-022–023","A258","PA-020–021","A257","PA-018–019","A256"]],
+    ["PRA004S", 1609, 1680, ["PA-016–017","A255","PA-014–015","A254","PA-012–013","A253"]],
+    ["PRA003S", 1682, 1754, ["PA-009–011","A252","PA-007–008","A251","PA-005–006","A250"]],
+    ["PRA002S", 1756, 1800, ["PA-003–004","A249","PA-001–002"]]
+  ],
+  // print phase label, colour family
+  ph: {
+    PRA001S:["Phase 1","green"], PRA002S:["Phase 2","pink"], PRA003S:["Phase 3","cyan"], PRA004S:["Phase 4","pink"], PRA005S:["Phase 5","cyan"],
+    TWE001S:["Phase 6","purple"], PRA006S:["Phase 7","green"], TWW001S:["Phase 8","purple"], PRA007S:["Phase 9","pink"], PRA008S:["Phase 10","cyan"],
+    PRA009S:["Phase 11","pink"], PRA010S:["Phase 12","cyan"], MBD001S:["MBD1","yellow"], MBD002S:["MBD2","salmon"], MBD003S:["MBD3","yellow"],
+    MBD004S:["MBD4","salmon"], MBD005S:["MBD5","yellow"], LCE001S:["LCE","orange"], LCW001S:["LCW","orange"], SNC001S:["S&C","blue"],
+    REA001S:["RA","green"], DDK001S:["DD","grey"], MPH1:["MPH1","grey"], MPH2:["MPH2","grey"], MPH3:["MPH3","grey"]
+  },
+  tint: { cyan:"#9fe6ee", pink:"#f0b4e6", green:"#b6e6a8", purple:"#c3b6e2", yellow:"#efe87a", salmon:"#f3c0b9", orange:"#f2c99c", blue:"#a9c6ef", grey:"#cfcfcb" }
+};
+const mnorm = s => String(s || "").replace(/ \(Bay [^)]*\)/, "").replace(/PA-(\d+)–PA-(\d+)/, "PA-$1–$2").trim();
+const mcode = c => String(c || "").replace(/^PSTX3BP/, "");
+function buildMap(){
+  const B = S.layout; const host = $("areas"); MAPPED.clear();
+  const card = el("div", "card mapcard");
+  const head = el("div", "maphead"); const h = el("h3"); h.append(document.createTextNode("Site map"), el("code", null, "laid out per CWP 250-04877 Rev C")); const apct = el("span", "pct"); h.append(apct); head.append(h);
+  const zoom = el("div", "zoom");
+  const zb = (txt, lab, fn) => { const b = el("button", "btn sm", txt); b.type = "button"; b.setAttribute("aria-label", lab); b.addEventListener("click", fn); zoom.append(b); return b; };
+  zb("−", "Zoom out", () => setZoom(Math.max(1, curZoom() / 1.5)));
+  zb("Fit", "Fit to screen", () => setZoom(0));
+  zb("+", "Zoom in", () => setZoom(Math.min(4, curZoom() * 1.5)));
+  head.append(zoom); card.append(head);
+  const sc = el("div", "mapscroll"); const map = el("div", "map"); sc.append(map); card.append(sc);
+  host.append(card);
+  const objs = []; const byPh = {};
+  const put = (node, x0, x1, v0, v1, kind) => { objs.push({ node, x0, x1, v0, v1, kind }); map.append(node); return node; };
+  const sqAt = (raw, where, code, x0, x1, v0, v1, tag) => {
+    const it = reg(raw, where); if (!it) return null;
+    const b = square(it, "m", tag || ""); const fam = (M.ph[code] || [])[1]; if (fam) b.style.setProperty("--tint", M.tint[fam]);
+    put(b, x0, x1, v0, v1, "sq"); MAPPED.add(it.row_id);
+    (byPh[code] ||= { ids: [], x0: 1e9, x1: -1e9, v0: 1e9, v1: -1e9 });
+    const g = byPh[code]; g.ids.push(it.row_id); g.x0 = Math.min(g.x0, x0); g.x1 = Math.max(g.x1, x1); g.v0 = Math.min(g.v0, v0); g.v1 = Math.max(g.v1, v1);
+    return it;
+  };
+  const leftovers = []; const gratings = {};
+  // aisle and tote-wall columns
+  const COL = {};
+  for (const [, a, b, labs] of M.strips){ const w = (b - a) / labs.length; labs.forEach((l, i) => COL[l] = [a + i * w, a + (i + 1) * w]); }
+  for (const ph of [...(B.aisles || []), ...(B.tote || [])]){
+    const code = mcode(ph.code);
+    for (const r of ph.rows || []){
+      const nm = mnorm(r.name); const col = COL[nm];
+      for (const i of r.items || []){
+        const b0 = i.b ? i.b[0] : 1, b1 = i.b ? i.b[1] : b0;
+        if (!col){ leftovers.push({ raw: i, where: nm }); continue; }
+        sqAt(i, code.startsWith("TW") ? ph.name.replace(/^.*– /, "") + " · " + nm : nm, code, col[0], col[1], b0 - 1, b1);
+      }
+      for (const g of r.extra || []) (gratings[ph.name] ||= []).push({ k: g.k, n: nm + " · " + (g.t || g.n) });
+    }
+  }
+  // MiniBot deck
+  const zm = (v, s0, s1, d0, d1) => d0 + (v - s0) / (s1 - s0) * (d1 - d0);
+  const ZP = { MBD001S: [2, 16, 1.9, 16.05], MBD002S: [15, 29, 16.05, 30.2], MBD003S: [28, 43, 30.2, 44.5] };
+  for (const z of B.deck || []){
+    const code = mcode(z.code); const zl = z.name.replace("Transfer Deck – ", "");
+    for (const r of z.rows || []){
+      const si = { West: 0, Center: 1, East: 2 }[r.name];
+      (r.items || []).forEach((i, n) => {
+        if (ZP[code] && si != null && i.b){ const p = ZP[code]; sqAt(i, "Deck " + zl, code, 1379 + si * 36, 1415 + si * 36, zm(i.b[0] - 1, p[0], p[1], p[2], p[3]), zm(i.b[1], p[0], p[1], p[2], p[3])); }
+        else if (code === "MBD004S") sqAt(i, "Deck " + zl, code, 1366 + n * 44.3, 1366 + (n + 1) * 44.3, 44.5, 47.8);
+        else if (code === "MBD005S") sqAt(i, "Induction / Transition", code, 1266, 1600, 47.8, 53);
+        else leftovers.push({ raw: i, where: zl });
+      });
+      for (const g of r.extra || []) leftovers.push({ raw: g, where: zl });
+    }
+  }
+  // lift cells, S&C / core steel, rear access, delta deck
+  const grid = (code, where, raws, order, x0, x1, v0, v1, cols) => {
+    const list = order.map(id => raws.find(r => r.k === "r" + id)).filter(Boolean);
+    const rows = Math.ceil(list.length / cols) || 1, cw = (x1 - x0) / cols, rh = (v1 - v0) / rows;
+    list.forEach((r, i) => { const c = i % cols, w = Math.floor(i / cols); sqAt(r, where, code, x0 + c * cw, x0 + (c + 1) * cw, v1 - (w + 1) * rh, v1 - w * rh); });
+    return list;
+  };
+  for (const g of B.other || []){
+    const code = mcode(g.code); const items = g.items || []; let used = [];
+    if (code === "LCW001S") used = grid(code, "Lift Cell West", items, [828, 830, 984, 1085, 826, 1084], 1274, 1379, 32.6, 44.9, 2);
+    else if (code === "LCE001S") used = grid(code, "Lift Cell East", items, [827, 829, 1083, 983, 1082, 825], 1487, 1584, 32.6, 44.9, 2);
+    else if (code === "SNC001S"){
+      used = grid(code, "Settle & Close", items, [831, 832, 985], 1195, 1272, 37, 43, 1)
+        .concat(grid(code, "Core steel", items, [833, 834], 1195, 1272, 33, 36.9, 2))
+        .concat(grid(code, "Core steel", items, [840], 1417, 1449, 0, 1.85, 1));
+    } else if (code === "REA001S"){
+      used = grid(code, "Rear Access", items, [880], 1081, 1205, 42.6, 44.4, 1)
+        .concat(grid(code, "Rear Access", items, [881], 1086, 1161, 51.2, 53.4, 1))
+        .concat(grid(code, "Rear Access", items, [882], 1756, 1770.6, 42.4, 55, 1));
+      const bx = el("div", "mfp dash"); bx.append(el("span", null, "Not on print")); put(bx, 1080, 1167, 50.2, 55.6, "fp");
+    } else if (code === "DDK001S") used = grid(code, "Delta Deck", items, [1111], 1195, 1548, -1.7, -0.15, 1);
+    for (const i of items) if (!used.includes(i)) leftovers.push({ raw: i, where: g.name });
+  }
+  // MPH mezzanines (gray areas around the induction on S13.00); MADD platforms stay in a card
+  const PARTS = ["Columns", "Beams", "C Channels", "Handrail", "Decking", "Stairs"], AB = { Columns: "Cols", Beams: "Beams", "C Channels": "C-Ch", Handrail: "Rail", Decking: "Deck", Stairs: "Stairs" };
+  const FP = { MPH1: [["MPH1 · West", 1172, 1266, 45.0, 55.6], ["", 1266, 1366, 45.0, 47.8]], MPH2: [["MPH2 · Central", 1266, 1600, 53.0, 57.3]], MPH3: [["MPH3 · East", 1600, 1675, 45.0, 55.6], ["", 1499, 1600, 45.0, 47.8]] };
+  const TL = { MPH1: [1172, 1266, 45.3, 55.6, 2], MPH2: [1266, 1600, 53.0, 57.3, 6], MPH3: [1600, 1675, 45.3, 55.6, 2] };
+  const madd = []; const fpLabels = {};
+  for (const pl of B.platforms || []){
+    if (!FP[pl.code]){ madd.push(pl); continue; }
+    FP[pl.code].forEach(([lab, a, b, c, d]) => { const f = el("div", "mfp"); if (lab){ const s = el("span", null, lab); f.append(s); fpLabels[pl.code] = s; } put(f, a, b, c, d, "fp"); });
+    const [x0, x1, v0, v1, cols] = TL[pl.code], pw = 3, cw = (x1 - x0 - pw * 2) / cols, rows = 6 / cols, rh = (v1 - v0 - 0.9) / rows;
+    PARTS.forEach((p, i) => { const raw = pl.cells[p]; if (!raw) return; const c = i % cols, r = Math.floor(i / cols), top = v1 - 0.9 - r * rh; sqAt(raw, pl.code, pl.code, x0 + pw + c * cw, x0 + pw + (c + 1) * cw, top - rh, top, AB[p]); });
+  }
+  // phase labels (pointer-events off so they never block a tap)
+  const phCards = [];
+  for (const [code, g] of Object.entries(byPh)){
+    const meta = M.ph[code] || [code]; const pct = el("span", "p");
+    phCards.push({ _ids: g.ids, _pct: pct });
+    if (code === "REA001S" || code === "DDK001S") continue;
+    if (fpLabels[code]){ fpLabels[code].append(document.createTextNode(" · "), pct); continue; }
+    const isNum = /^Phase/.test(meta[0]); const lab = el("div", "mlab" + (isNum && code !== "PRA001S" && code !== "PRA006S" ? " v" : ""));
+    lab.append(el("span", null, meta[0].toUpperCase()), pct); lab.title = "PSTX3BP" + code;
+    let cx = (g.x0 + g.x1) / 2, cv = (g.v0 + g.v1) / 2;
+    if (code === "PRA001S"){ cx = 1660; cv = 1.4; } else if (code === "PRA006S"){ cx = 1210; cv = 1.4; } else if (isNum) cv = 12.5; else if (code === "SNC001S"){ cx = 1233; cv = 38; }
+    put(lab, cx, cx, cv, cv, "lab");
+  }
+  CARDS.push(...phCards); AREAS.push({ pct: apct, cards: phCards });
+  // compass tags, install direction, bay ruler
+  put(Object.assign(el("div", "mtag", "WEST")), 1079, 1079, 57.8, 57.8, "tag");
+  put(Object.assign(el("div", "mtag", "EAST")), 1770, 1770, 57.8, 57.8, "tag");
+  put(el("div", "mtag dir", "← DIRECTION OF INSTALL"), 1612, 1612, 9.6, 9.6, "tag");
+  for (const b of [1, 10, 20, 30, 40, 50]) put(el("div", "mruler", "Bay " + b), null, null, b - .5, b - .5, "ruler");
+  MAPEL = { map, sc, objs };
+  layoutMap();
+  // what doesn't sit on the print: decking levels & ramps, aisle grating, MADD platforms, anything new
+  const extraNodes = [], extraCards = [];
+  if (B.levels?.length){ const lc = levelsCard(B.levels); extraNodes.push(lc); extraCards.push(lc); }
+  const gr = Object.entries(gratings).map(([name, items]) => ({ name: "Grating · " + name.replace(/^PSTX3BP\w+ – /, ""), items }));
+  if (gr.length){ const [ob, oc] = otherCards(gr); extraNodes.push(ob); extraCards.push(...oc); }
+  if (madd.length){ const pc = platformCard(madd); extraNodes.push(pc); extraCards.push(pc); }
+  if (leftovers.length){ const [ob, oc] = otherCards([{ name: "Not on the map yet", items: leftovers.map(l => ({ k: l.raw.k, n: l.where + " · " + (l.raw.n || "") })) }]); extraNodes.push(ob); extraCards.push(...oc); }
+  if (extraNodes.length) area("Not drawn on the print", extraNodes, extraCards);
+}
+function curZoom(){ return mapZoom || (window.matchMedia("(max-width:760px)").matches ? 2 : 1); }
+function setZoom(z){ mapZoom = z; store.set("mapzoom", z); layoutMap(); }
+function layoutMap(){
+  if (!MAPEL || !MAPEL.map.isConnected) return;
+  const avail = Math.max(320, MAPEL.sc.clientWidth - 70);
+  const kx = Math.min(1.35, avail / (M.x1 - M.x0)) * curZoom(), ky = kx * M.ky;
+  const W = (M.x1 - M.x0) * kx, H = (M.vTop - M.vMin) * ky;
+  MAPEL.map.style.width = W + "px"; MAPEL.map.style.height = H + "px";
+  const X = x => (x - M.x0) * kx, Y = v => (M.vTop - v) * ky;
+  for (const o of MAPEL.objs){
+    const s = o.node.style;
+    if (o.kind === "sq" || o.kind === "fp"){
+      s.left = X(o.x0).toFixed(1) + "px"; s.top = Y(o.v1).toFixed(1) + "px";
+      s.width = Math.max(3, (o.x1 - o.x0) * kx - (o.kind === "sq" ? 1 : 0)).toFixed(1) + "px"; s.height = Math.max(3, (o.v1 - o.v0) * ky - (o.kind === "sq" ? 1 : 0)).toFixed(1) + "px";
+      if (o.kind === "sq"){ const tg = o.node.querySelector(".tag"); if (tg) tg.style.display = (o.x1 - o.x0) * kx > 30 && (o.v1 - o.v0) * ky > 18 ? "" : "none"; }
+    } else if (o.kind === "ruler"){ s.left = "-46px"; s.top = Y(o.v0).toFixed(1) + "px"; }
+    else if (o.kind === "tag"){ s.left = X(o.x0).toFixed(1) + "px"; s.top = (Y(o.v0) - 2).toFixed(1) + "px"; }
+    else { s.left = X(o.x0).toFixed(1) + "px"; s.top = Y(o.v0).toFixed(1) + "px"; }
+  }
+}
+window.addEventListener("resize", () => { if (mapOn()) layoutMap(); });
+function setView(v){
+  viewMode = v; store.set("view", v);
+  for (const b of document.querySelectorAll(".viewtog button")) b.setAttribute("aria-pressed", String(b.dataset.v === (mapOn() ? "map" : "list")));
+  if (!S) return;
+  closeSheet(); buildBoard(); buildLayers(); hint(); paintAll(); fixHeader();
+}
+for (const b of document.querySelectorAll(".viewtog button")) b.addEventListener("click", () => setView(b.dataset.v));
+
 /* ---------- painting ---------- */
 function paint(rid){
   const it = ITEM.get(Number(rid)), b = SQ.get(Number(rid)); if (!it || !b) return;
   const tasks = tasksFor(it); const fill = b.firstChild; const q = qcOf(it.row_id);
-  b.className = b.className.split(" ").filter(c => c === "sq" || c === "inline" || c === "sel").join(" ");
+  b.className = b.className.split(" ").filter(c => c === "sq" || c === "inline" || c === "sel" || c === "m").join(" ");
   if (pending.get(it.row_id)) b.classList.add("pending");
   if (FLAGS[it.row_id]) b.classList.add("mm");
   if (q && q.tags) b.classList.add("tagged");
@@ -639,6 +882,7 @@ function summary(){
   let qt = 0, qp = 0, qw = 0; for (const rid of all){ qt++; const q = qcOf(rid); if (q?.qc === "Pass") qp++; else if (pctOf(ITEM.get(rid)) >= .9999) qw++; }
   add("qc", "QC passed", "var(--ok)", qt ? qp / qt * 100 : 0, `${qp}/${qt} · ${qw} waiting`);
   for (const t of TASK_ORDER){
+    if (QT.has(t)) continue;
     let tot = 0, got = 0;
     for (const rid of all){ const it = ITEM.get(rid); if ((W[it.area_type] || {})[t] > 0){ tot++; if (done(rid, t)) got++; } }
     if (!tot) continue;
@@ -662,7 +906,7 @@ function buildLayers(){
     }
     return;
   }
-  const opts = [["all", "All (install %)"], ["qc", "QC"], ...TASK_ORDER.filter(t => Object.values(W).some(w => w[t] > 0)).map(t => [t, TASK[t].name])];
+  const opts = [["all", "All (install %)"], ["qc", "QC"], ...TASK_ORDER.filter(t => !QT.has(t) && Object.values(W).some(w => w[t] > 0)).map(t => [t, TASK[t].name])];
   for (const [s, n] of opts){
     const c = el("button", "chip"); c.type = "button"; c.dataset.s = s;
     const d = el("span", "dot"); if (s === "qc") c.style.setProperty("--c", "var(--ok)"); else if (s !== "all") c.style.setProperty("--c", color(s));
@@ -813,7 +1057,27 @@ function renderSheet(){
   const bar = el("span", "bar"); const f = el("span"); f.style.width = p * 100 + "%"; bar.append(f); top.append(pr, bar); box.append(top);
   const byTask = {}; for (const r of detail?.progress || []) byTask[r.task_key] = r;
   const w = W[it.area_type] || {}; const tot = TYPE_TOTAL[it.area_type] || 1;
+  const qtasks = tasksFor(it).filter(t => QT.has(t));
+  if (qtasks.length){
+    // quarter steps: one tap sets the amount in place; tapping the current amount steps back one
+    const n = qtasks.filter(t => done(it.row_id, t)).length;
+    const seg = el("div", "pctseg");
+    qtasks.forEach((t, i) => {
+      const b = el("button", (i < n ? "on" : "") + (i + 1 === n ? " cur" : ""), TASK[t].name); b.type = "button"; b.disabled = !isCrew();
+      b.setAttribute("aria-pressed", String(i + 1 === n));
+      b.addEventListener("click", () => {
+        const target = i + 1 === n ? i : i + 1;
+        if (target > n && !catchReady()) return;
+        qtasks.forEach((q, j) => { const want = j < target; if (done(it.row_id, q) !== want) mark([it.row_id], q, want); });
+      });
+      seg.append(b);
+    });
+    box.append(seg);
+    const last = qtasks.filter(t => done(it.row_id, t)).map(t => byTask[t]).filter(Boolean).sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)))[0];
+    box.append(el("div", "meta", n >= qtasks.length ? "100% in place — QC gets flagged in Smartsheet." : "Tap the amount that's in place. Tap the current one again to step back." + (last ? " Last change " + [fmtWhen(last.done_at), last.done_by].filter(Boolean).join(" · ") : "")));
+  }
   for (const t of tasksFor(it)){
+    if (QT.has(t)) continue;
     const d = done(it.row_id, t);
     const lab = el("label", "stg" + (d ? " done" : "")); lab.style.setProperty("--c", color(t));
     const cb = el("input"); cb.type = "checkbox"; cb.checked = d; cb.disabled = !isCrew();
@@ -821,6 +1085,22 @@ function renderSheet(){
     lab.append(cb, el("span", null, TASK[t].name), el("span", "w", Math.round(w[t] / tot * 100) + "%"));
     if (d && byTask[t]) lab.append(el("span", "who", byTask[t].backfill ? `Catch-up · done ${new Date(byTask[t].done_at).toLocaleDateString([], { month: "short", day: "numeric" })} · ${byTask[t].done_by || ""}` : [fmtWhen(byTask[t].done_at), byTask[t].done_by].filter(Boolean).join(" · ")));
     box.append(lab);
+  }
+  // rows that belong here but aren't drawn on the map (deck zone decking & ramps, aisle grating)
+  if (mapOn() && MAPPED.has(it.row_id)){
+    const rel = [...ITEM.values()].filter(x => x.key && !MAPPED.has(x.row_id) && x.phase === it.phase && (it.area_type === "td" || x.area === it.area))
+      .sort((a, b) => a.row_id - b.row_id);
+    if (rel.length){
+      const rb = el("div", "box"); rb.append(el("b", null, it.area_type === "td" ? "Decking & ramps · " + (it.phase || "") : "Also here · " + it.area));
+      const g = el("div", "rel");
+      for (const x of rel){
+        const p = pctOf(x); const b = el("button", p >= .9999 ? "done" : ""); b.type = "button";
+        b.append(el("span", null, (x.label || x.n || "").replace(/^Decking - /, "").replace(/^Ramps - /, "Ramps ").replace(/Grating - /, "Grating ")), el("b", null, Math.round(p * 100) + "%"));
+        const f = el("span", "rf"); f.style.width = p * 100 + "%"; b.append(f);
+        b.addEventListener("click", () => openSheet(x)); g.append(b);
+      }
+      rb.append(g); box.append(rb);
+    }
   }
   // missing material
   const mm = el("div", "box" + (FLAGS[it.row_id] ? " bad" : ""));
