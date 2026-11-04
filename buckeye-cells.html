@@ -202,7 +202,7 @@ button:focus-visible,.tile:focus-visible{outline:3px solid var(--accent);outline
     <aside class="side">
       <div class="card box" id="hoursBox"></div>
       <div class="card box" id="stats"></div>
-      <div class="rules"><b style="color:var(--fg)">How % works.</b> Mechanical: Set 20 · Level 20 · Anchor 30 · Torque 30. Cable: Pulled 45 · Landed 40 · Tested 15. Tray &amp; cabinets: Set 40 · Anchor 30 · Bond 30. Install steps earn a piece up to 90%; QC pass in Smartsheet (Cleared by QC) adds the last 10%. Packages average their pieces, disciplines their packages, cells their disciplines. Taps are copied to Install % on the Buckeye 2.0 sheet. Power drops stay on the electrical board.</div>
+      <div class="rules"><b style="color:var(--fg)">How % works.</b> Mechanical: Set 20 · Level 20 · Anchor 30 · Torque 30. Cable: Pulled 45 · Landed 40 · Tested 15. Tray &amp; cabinets: Set 40 · Anchor 30 · Bond 30. Install steps earn a piece up to 90%; QC pass in Smartsheet (Cleared by QC) adds the last 10%. Packages, disciplines and cells roll up by Task Weight, the same way Buckeye 2.0 does (cell % here leaves out power drops). Taps are copied to Install % on each piece in Buckeye 2.0. Power drops stay on the electrical board.</div>
     </aside>
   </div>
 </div>
@@ -231,10 +231,14 @@ button:focus-visible,.tile:focus-visible{outline:3px solid var(--accent);outline
 
   function buildTree(rows){
     var byId={},cells={};
-    CELLS.forEach(function(c){cells[c]={mech:[],ctrl:[],lift:[]};});
-    rows.forEach(function(r){byId[r[0]]={id:r[0],parent:r[1],kind:r[2],cell:r[3],disc:r[4],set:r[5],piece:!!r[6],name:r[7],kids:[]};});
+    CELLS.forEach(function(c){cells[c]={mech:[],ctrl:[],lift:[],top:{mech:[],ctrl:[],lift:[]},node:null};});
+    rows.forEach(function(r){byId[r[0]]={id:r[0],parent:r[1],kind:r[2],cell:r[3],disc:r[4],set:r[5],piece:!!r[6],name:r[7],w:r[8],kids:[]};});
     rows.forEach(function(r){var n=byId[r[0]];if(n.parent&&byId[n.parent])byId[n.parent].kids.push(n);});
     rows.forEach(function(r){var n=byId[r[0]];
+      if(!cells[n.cell])return;
+      if(n.kind==='cell')cells[n.cell].node=n;
+      // the rows that make up a discipline: its discipline row(s), plus any package sitting straight under the cell
+      if(n.kind==='disc'||(n.kind==='pkg'&&byId[n.parent]&&byId[n.parent].kind==='cell'))cells[n.cell].top[n.disc].push(n);
       if(n.kind==='pkg'&&cells[n.cell]&&cells[n.cell][n.disc]){
         var items=[];
         if(n.piece)items.push({node:n,groups:[]});
@@ -251,9 +255,17 @@ button:focus-visible,.tile:focus-visible{outline:3px solid var(--accent);outline
   function install(p,id){var n=nOf(id),w=0;for(var i=0;i<Math.min(n,p.steps.length);i++)w+=p.steps[i][1];return w;}
   function itVal(p,id){return isPass(id)?100:install(p,id)*0.9;}
   function avg(a){return a.length?a.reduce(function(x,y){return x+y;},0)/a.length:null;}
-  function pkVal(p){return avg(p.items.map(function(it){return itVal(p,it.node.id);}))||0;}
-  function discVal(cell,k){var l=T.cells[cell][k];return l.length?avg(l.map(pkVal)):null;}
-  function cellVal(cell,k){if(k)return discVal(cell,k);var v=['mech','ctrl','lift'].map(function(d){return discVal(cell,d);}).filter(function(x){return x!==null;});return v.length?avg(v):null;}
+  // Weighted the way Buckeye 2.0 does it: SUM(child % x Task Weight) / SUM(child Task Weight).
+  // If none of the rows has a Task Weight, fall back to a plain average so progress still shows.
+  var memo={};
+  function wavg(list){if(!list.length)return 0;var sw=0,s=0;list.forEach(function(n){var w=Number(n.w)||0;sw+=w;s+=nodeVal(n)*w;});
+    return sw>0?s/sw:avg(list.map(nodeVal));}
+  function nodeVal(n){if(n.id in memo)return memo[n.id];
+    var v=n.piece?(isPass(n.id)?100:(function(){var st=SETS[n.set]||SETS.M,k=nOf(n.id),w=0;for(var i=0;i<Math.min(k,st.length);i++)w+=st[i][1];return w*0.9;})()):wavg(n.kids);
+    return memo[n.id]=v;}
+  function pkVal(p){return nodeVal(p.node);}
+  function discVal(cell,k){var l=T.cells[cell].top[k];return l.length?wavg(l):null;}
+  function cellVal(cell,k){if(k)return discVal(cell,k);var c=T.cells[cell];return c.node?wavg(c.node.kids):null;}
   function pct(v){return v===null?null:Math.floor(v+1e-9)===100?100:Math.round(v)>=100?99:Math.round(v);}
   function hasMiss(cell,keys){return (keys||['mech','ctrl','lift']).some(function(k){return T.cells[cell][k].some(function(p){return p.items.some(function(it){return flag(it.node.id)[1];});});});}
   function full(p,id){return nOf(id)>=p.steps.length;}
@@ -465,7 +477,7 @@ button:focus-visible,.tile:focus-visible{outline:3px solid var(--accent);outline
       '<div class="tot"><span>Pieces QC passed</span><b>'+qc+'</b></div>'+
       '<div class="tot"><span>Man-hours</span><b>'+mh+'</b></div>';
   }
-  function render(){if(!S||!T)return;renderBanners();renderStatus();renderLayers();renderMap();renderDetail();renderHours();renderSide();}
+  function render(){if(!S||!T)return;memo={};renderBanners();renderStatus();renderLayers();renderMap();renderDetail();renderHours();renderSide();}
 
   // ---------- start ----------
   var nm=document.getElementById('nm'),cd=document.getElementById('cd'),dt=document.getElementById('dt');
