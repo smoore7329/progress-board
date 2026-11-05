@@ -271,8 +271,10 @@ function renderKpis(){
     ['Drops done '+dayWord(),has?(dropsDay>0?'+':'')+fmt(r1(dropsDay)):'—','step credit moved on the board']];
   document.getElementById('kpis').innerHTML=k.map(x=>'<div class="kpi"><span class="l">'+esc(x[0])+'</span><span class="v">'+esc(x[1])+'</span><span class="s">'+esc(x[2])+'</span></div>').join('');
 }
+let sideLoc=null;
 function renderSide(){
   const l=S.sel,t=tot(l),el=document.getElementById('side');
+  const oldSb=el.querySelector('.sb'),keep=(oldSb&&sideLoc===l)?oldSb.scrollTop:0;sideLoc=l;
   let h='<div class="sh"><span class="t">'+esc(locName(l))+'</span><span class="m">'+esc(INFO[l][0])+(INFO[l][1]?' · panel '+esc(INFO[l][1]):'')+(S.data?' · '+fmt(t.d)+' of '+t.s+' drops · '+r1(t.mh)+' MH to date':'')+'</span></div><div class="sb">';
   if(!S.data){h+='<div class="msg">'+(S.err?esc(S.err):'Loading…')+'</div></div>';el.innerHTML=h;return}
   const T=types(l);
@@ -304,6 +306,7 @@ function renderSide(){
   if(S.msg)h+='<div class="msg'+(S.msgBad?' bad':'')+'" role="status">'+esc(S.msg)+'</div>';
   h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Buckeye Electrical Manhours Log</b> in Smartsheet (one row per day, cell and drop type), and + / − copies the Done credit (40% conduit / pipe, 40% wire pulled, 20% terminated) to <b>Master Power drops</b> a few seconds later. Hours are not copied to Master Power drops.</div></details>';
   h+='</div>';el.innerHTML=h;
+  const sb=el.querySelector('.sb');if(sb&&keep)sb.scrollTop=keep;
 }
 function renderTally(){
   const el=document.getElementById('tally');
