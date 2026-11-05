@@ -344,7 +344,7 @@ function renderTally(){
   el.innerHTML='<thead><tr><th>Drop</th><th>Description</th><th>Done / scope</th><th>By letter line</th><th class="n">MH '+dayWord()+'</th><th class="n">MH to date</th><th class="n">MH / drop</th></tr></thead><tbody>'+rows+'</tbody>'+
     '<tfoot><tr><td class="code">All</td><td class="desc">'+pct+'% complete</td><td><div class="pb"><div class="bar"><i style="width:'+pct+'%"></i></div><span>'+r1(TD)+'/'+TS+'</span></div></td><td></td><td class="n">'+r1(TT)+'</td><td class="n">'+r1(TM)+'</td><td class="n">'+(TD?r1(TM/TD):'—')+'</td></tr></tfoot>';
 }
-function render(){renderStatus();renderKpis();renderGrid();renderSide();renderTally()}
+function render(){const y=window.scrollY;renderStatus();renderKpis();renderGrid();renderSide();renderTally();if(Math.abs(window.scrollY-y)>1)window.scrollTo(0,y)}
 document.getElementById('tally').addEventListener('click',e=>{const b=e.target.closest('[data-line]');if(!b)return;S.sel=b.dataset.line;S.open=null;S.msg='';render();document.getElementById('side').scrollIntoView({behavior:'smooth',block:'start'})});
 
 
