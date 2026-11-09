@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Palestine Electrical Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: the building grid from drawing 250-04854 (letters north→south, numbers across), live Smartsheet panel beside it */
+:root{
+  --bg:#F2F3F0; --panel:#FFFFFF; --ink:#1B1F23; --muted:#59606A; --line:#D9DCD5; --grid:#1B1F23;
+  --hatch:#E8EAE5; --done:#1F6FB2; --done-soft:#E1ECF7; --part:#C27C0A; --part-soft:#FFF3DC;
+  --warn-ink:#7A4B00; --bad:#B3261E; --bad-soft:#FBE9E7; --chip-on:#E1ECF7; --chip-on-ink:#164F80;
+  --sq-off-border:#848B94; --head:#1B1F23; --head-ink:#FFFFFF; --head-muted:#B8BEC6;
+  --ok:#2E7D4F; --ok-soft:#E3F2E8;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14171A; --panel:#1C2024; --ink:#E7E9EC; --muted:#A3AAB3; --line:#30363C; --grid:#C9CED4;
+  --hatch:#22272C; --done:#5AA2E6; --done-soft:#1D3247; --part:#E3A43A; --part-soft:#3A2E17;
+  --warn-ink:#F2C374; --bad:#F2867C; --bad-soft:#3B1E1C; --chip-on:#1D3247; --chip-on-ink:#A9CDF2;
+  --sq-off-border:#7D858F; --head:#0E1012; --head-ink:#F2F4F6; --head-muted:#98A0AA;
+  --ok:#6CC28F; --ok-soft:#183326; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14171A; --panel:#1C2024; --ink:#E7E9EC; --muted:#A3AAB3; --line:#30363C; --grid:#C9CED4;
+  --hatch:#22272C; --done:#5AA2E6; --done-soft:#1D3247; --part:#E3A43A; --part-soft:#3A2E17;
+  --warn-ink:#F2C374; --bad:#F2867C; --bad-soft:#3B1E1C; --chip-on:#1D3247; --chip-on-ink:#A9CDF2;
+  --sq-off-border:#7D858F; --head:#0E1012; --head-ink:#F2F4F6; --head-muted:#98A0AA;
+  --ok:#6CC28F; --ok-soft:#183326; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45}
+.wrap{max-width:1440px;margin:0 auto;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{margin:0;font-size:30px;font-weight:700;text-wrap:balance}
+.sub{color:var(--muted);max-width:68ch}
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:14px}
+.status{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
+.dot.live{background:#2E9D5B}.dot.err{background:var(--bad)}
+.btn{font:600 13px var(--sans);height:38px;padding:0 14px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--grid)}
+.btn.primary{background:var(--done);border-color:var(--done);color:#fff}
+.btn:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:3px solid var(--done);outline-offset:2px}
+.banner{border:1px solid var(--line);background:var(--panel);border-left:4px solid var(--part);padding:12px 14px;border-radius:6px;font-size:13.5px}
+.banner.bad{border-left-color:var(--bad)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .l{font-size:12.5px;color:var(--muted)}
+.kpi .v{font:700 24px var(--mono);font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12px;color:var(--muted)}
+.main{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.board{flex:999 1 780px;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow-x:auto;padding:22px 16px 22px 6px}
+.g{min-width:840px;display:grid;grid-template-columns:72px repeat(5,minmax(0,1fr))}
+.bub{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--grid);background:var(--panel);display:flex;align-items:center;justify-content:center;font:600 14px var(--mono);color:var(--ink)}
+.ch{height:42px;position:relative;border-bottom:2px solid var(--grid)}
+.ch .bub{position:absolute;top:0;left:-15px}.ch .bub.r{left:auto;right:-15px}
+.rl{position:relative;border-right:2px solid var(--grid);display:flex;flex-direction:column;align-items:center;justify-content:center;padding-right:8px;font-size:10.5px;color:var(--muted);text-align:center;line-height:1.2}
+.rl b{font:600 14px var(--mono);color:var(--ink)}
+.rl .bub{position:absolute;right:14px;top:-15px}.rl .bub.s{top:auto;bottom:-15px}
+.rl.sel{background:var(--chip-on)}
+.bay{min-height:104px;border-right:1px dashed var(--line);border-bottom:1px dashed var(--line);padding:7px;display:flex;flex-direction:column;gap:5px}
+.bay.empty{background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 6px,var(--hatch) 6px,var(--hatch) 12px)}
+.bay.full{background:var(--done-soft)}
+.bay.sel{outline:3px solid var(--grid);outline-offset:-3px}
+.bh{display:flex;justify-content:space-between;align-items:center;gap:6px;width:100%;min-height:30px;border:0;border-radius:4px;background:transparent;color:var(--ink);font:600 12px var(--mono);cursor:pointer;padding:2px 4px;text-align:left}
+.bh:hover{background:var(--bg)}
+.bh span+span{font-weight:400;color:var(--muted)}
+.bar{height:4px;background:var(--hatch);border-radius:2px;overflow:hidden}.bar i{display:block;height:4px;background:var(--part)}
+.tg{display:flex;gap:5px;align-items:flex-start}
+.tg .c{font:600 10.5px var(--mono);color:var(--muted);min-width:34px;padding-top:1px}
+.sqs{display:flex;flex-wrap:wrap;gap:3px}
+.sq{width:12px;height:12px;border-radius:2px;border:1.5px solid var(--sq-off-border);background:var(--panel)}
+.sq.on,.sq.st3{background:#3E8E2A;border-color:#2C6B1C}
+.sq.st1{background:#E8742A;border-color:#B5541A}
+.sq.st2{background:#F2C200;border-color:#B38F00}
+.steps{display:flex;flex-direction:column;gap:6px}
+.srow{display:flex;align-items:center;gap:8px}
+.srow .sq{width:14px;height:14px;flex:none}
+.srow .sn{flex:1;min-width:0;font-size:13px}
+.srow .sn span{color:var(--muted);font-size:12px}
+.trow .done{font:600 14px var(--mono);font-variant-numeric:tabular-nums}
+.trow .stp{width:36px;height:36px}
+.split{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:6px 0 6px 78px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.split:before,.split:after{content:"";flex:1;border-top:1px solid var(--line)}
+.side{flex:1 1 340px;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.sh{background:var(--head);color:var(--head-ink);padding:14px 16px;display:flex;flex-direction:column;gap:3px}
+.sh .t{font:700 20px var(--mono)}
+.sh .m{font-size:13px;color:var(--head-muted)}
+.sb{padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px}
+.lab{font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.trow{border:1px solid var(--line);border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.trow .r1{display:flex;align-items:center;gap:8px}
+.trow .code{font:600 14px var(--mono);min-width:46px}
+.trow .desc{flex:1;min-width:0;font-size:12.5px;color:var(--muted)}
+.trow .cnt{font:600 14px var(--mono);font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+.stp{width:40px;height:40px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:600 18px var(--sans);cursor:pointer;padding:0}
+.stp:disabled{opacity:.4;cursor:default}
+.note{font-size:12px;color:var(--warn-ink);background:var(--part-soft);border-radius:4px;padding:4px 8px}
+.today{font-size:12.5px;color:var(--muted)}
+.crew{display:flex;flex-wrap:wrap;gap:5px}
+.cr{height:34px;padding:0 10px;border-radius:17px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:500 12.5px var(--sans);cursor:pointer}
+.cr.on{background:var(--chip-on);color:var(--chip-on-ink);border-color:var(--done)}
+.hrs{display:flex;align-items:center;gap:8px}
+.hrs label{flex:1;font-size:13px}
+.hrs input{width:76px;height:38px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:600 15px var(--mono);text-align:center}
+.msg{font-size:12.5px;color:var(--muted)}
+.msg.bad{color:var(--bad)}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12.5px;color:var(--muted);align-items:center}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.tally{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.tally-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;justify-content:space-between}
+.tally h2{margin:0;font-size:17px}
+.tw{overflow-x:auto}
+.tally table{width:100%;min-width:760px;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tally th{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:2px solid var(--grid)}
+.tally th.n,.tally td.n{text-align:right}
+.tally td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tally td.code{font:600 13px var(--mono);white-space:nowrap}
+.tally td.desc{color:var(--muted);font-size:13px}
+.tally td.n{font:600 13px var(--mono)}
+.tally .pb{display:flex;align-items:center;gap:8px;min-width:150px}
+.tally .pb .bar{flex:1;height:6px}.tally .pb .bar i{height:6px;background:var(--done)}
+.tally .pb span{font:600 13px var(--mono);min-width:64px;text-align:right}
+.lines{display:flex;flex-wrap:wrap;gap:4px}
+.ln{font:500 11.5px var(--mono);border:1px solid var(--line);border-radius:10px;padding:1px 7px;background:var(--panel);color:var(--ink);cursor:pointer}
+.ln.full{background:var(--done-soft);border-color:var(--done)}
+.tally tfoot td{border-bottom:0;border-top:2px solid var(--grid);font-weight:700}
+details summary{cursor:pointer;font-size:13px;color:var(--muted)}
+@media (prefers-reduced-motion: no-preference){.bar i{transition:width .3s}}
+
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.wdl{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.wdl input{height:38px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:500 13px var(--sans);padding:0 8px}
+.gate{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.gate-card{width:100%;max-width:400px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:22px;display:flex;flex-direction:column;gap:10px}
+.gate-card h2{margin:0;font-size:22px}
+.gate-card input{height:44px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:500 16px var(--sans);padding:0 12px}
+.gate-card .btn{height:44px;font-size:15px}
+[hidden]{display:none!important}
+@media (max-width:640px){h1{font-size:24px}.kpi .v{font-size:20px}}
+
+/* Tabs: Board / Hours vs budget */
+.tabs{display:flex;gap:0;border-bottom:2px solid var(--grid)}
+.tab{font:600 14px var(--sans);height:42px;padding:0 18px;border:1px solid var(--line);border-bottom:0;border-radius:6px 6px 0 0;background:var(--bg);color:var(--muted);cursor:pointer;margin-right:4px}
+.tab[aria-selected="true"]{background:var(--grid);border-color:var(--grid);color:var(--bg)}
+.tabpane{display:flex;flex-direction:column;gap:18px}
+/* Hours vs budget */
+.hv-lede{font-size:19px;line-height:1.4;margin:0;max-width:62ch}
+.hv-lede b{font-family:var(--mono)}
+.hv-hero{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center}
+.hv-ratio{font:700 56px/1 var(--mono);font-variant-numeric:tabular-nums}
+.hv-hero p{margin:0;color:var(--muted);max-width:60ch;font-size:13.5px}
+.hv-sec{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.hv-sec h2{margin:0;font-size:17px}
+.hv-sec .how{margin:0;color:var(--muted);font-size:13px;max-width:80ch}
+.heat{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.cell{border-radius:6px;padding:9px 10px;background:var(--hatch);border:1px solid var(--line);color:var(--muted)}
+.cell .t{font:600 15px var(--mono);color:var(--ink)}
+.cell .t span{font-weight:400;font-size:13px;color:var(--muted)}
+.cell .d{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell .n{font:600 12.5px var(--mono);margin-top:5px}
+.cell.good{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.cell.warn{background:var(--part-soft);border-color:var(--part);color:var(--warn-ink)}
+.cell.bad{background:var(--bad-soft);border-color:var(--bad);color:var(--bad)}
+.hv-chart{position:relative;height:300px}
+.hv-tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13px}
+.hv-tbl th{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:right;padding:6px 8px;border-bottom:2px solid var(--grid)}
+.hv-tbl td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);font-family:var(--mono)}
+.hv-tbl th:first-child,.hv-tbl td:first-child{text-align:left}
+.brow{display:grid;grid-template-columns:150px minmax(0,1fr) 150px;gap:12px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.brow:last-child{border-bottom:0}
+.brow .k b{font:600 14px var(--mono);margin-right:6px}.brow .k span{color:var(--muted);font-family:var(--mono)}
+.trk{position:relative;height:14px;background:var(--hatch);border-radius:3px}
+.ern{position:absolute;left:0;top:0;bottom:0;background:var(--done);border-radius:3px}
+.act{position:absolute;top:-5px;bottom:-5px;width:3px;margin-left:-1px;background:var(--ink)}
+.act.over{background:var(--bad)}
+.brow .v{text-align:right;font-family:var(--mono);color:var(--muted)}
+.tg-ok{color:var(--ok)}.tg-warn{color:var(--warn-ink)}.tg-bad{color:var(--bad)}
+.flags{margin:0;padding-left:20px;font-size:13.5px}.flags li{margin:3px 0}
+.sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line)}
+@media (max-width:640px){.brow{grid-template-columns:70px minmax(0,1fr) 96px}.brow .k span{display:none}.hv-ratio{font-size:42px}}
+
+body{margin:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div style="display:flex;flex-direction:column;gap:5px">
+      <div class="eyebrow">Walmart Palestine TX · Phase 3.5 Breakpack · Electrical</div>
+      <h1>Power drops on the building grid</h1>
+      <div class="sub">Letter lines run north–south, number lines east–west, as on drawing 250-04854. Done counts and crew hours are saved here, and every save is copied to Smartsheet. Tap a bay header to work that letter line.</div>
+    </div>
+    <div class="status" aria-live="polite">
+      <span class="dot" id="dot"></span><span id="stat">Connecting…</span>
+      <label class="wdl" for="wd">Work date <input type="date" id="wd"></label><button class="btn" id="refresh" type="button">Refresh</button><button class="btn" id="signout" type="button">Sign out</button>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Board views">
+    <button class="tab" type="button" role="tab" id="tab-btn-board" aria-controls="tab-board" aria-selected="true" data-tab="board">Board</button>
+    <button class="tab" type="button" role="tab" id="tab-btn-hours" aria-controls="tab-hours" aria-selected="false" data-tab="hours">Hours vs budget</button>
+  </div>
+
+  <div class="tabpane" id="tab-board" role="tabpanel" aria-labelledby="tab-btn-board">
+  <div id="banner" hidden></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="main">
+    <div class="board"><div class="g" id="grid"></div></div>
+    <aside class="side" id="side" aria-label="Selected letter line"></aside>
+  </div>
+
+  <section class="tally" aria-labelledby="tally-h">
+    <div class="tally-top"><h2 id="tally-h">Drop type totals</h2><span class="msg" id="tally-sub">All letter lines combined, from the sheet</span></div>
+    <div class="tw"><table id="tally"></table></div>
+  </section>
+
+  <div class="legend">
+    <span><i class="sq st1" style="display:inline-block"></i>Conduit / pipe · 40%</span>
+    <span><i class="sq st2" style="display:inline-block"></i>Wire pulled · 80%</span>
+    <span><i class="sq st3" style="display:inline-block"></i>Terminated · 100%</span>
+    <span><i class="sq" style="display:inline-block"></i>Not started</span>
+    <span><i class="bay empty" style="display:inline-block;width:18px;height:14px;min-height:0;padding:0;border:0"></i>No drops on the print</span>
+    <span>Drops are counted by letter line, so each row’s bays fill from line 6 eastward: green first, then yellow, then orange. Done = 40% conduit / pipe + 40% wire pulled + 20% terminated.</span>
+  </div>
+  </div>
+
+  <div class="tabpane" id="tab-hours" role="tabpanel" aria-labelledby="tab-btn-hours" hidden>
+    <p class="msg" id="hv-msg" role="status"></p>
+    <div id="hv-body" hidden>
+      <p class="hv-lede" id="hv-lede"></p>
+      <div class="hv-hero"><div class="hv-ratio" id="hv-ratio">–</div><p id="hv-note"></p></div>
+
+      <section class="hv-sec" aria-labelledby="hv-h1">
+        <h2 id="hv-h1">Every drop type at a glance</h2>
+        <p class="how">Color is earned hours ÷ hours spent. Green is on or under budget, yellow is up to 10% over, red is more than 10% over. Gray hasn’t had hours or progress yet.</p>
+        <div class="heat" id="hv-heat"></div>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--ok-soft);border-color:var(--ok)"></i>1.00 or better</span>
+          <span><i class="sw" style="background:var(--part-soft);border-color:var(--part)"></i>0.90 to 0.99</span>
+          <span><i class="sw" style="background:var(--bad-soft);border-color:var(--bad)"></i>below 0.90</span>
+          <span><i class="sw" style="background:var(--hatch)"></i>not started</span>
+        </div>
+      </section>
+
+      <section class="hv-sec" aria-labelledby="hv-h2">
+        <h2 id="hv-h2">Weekly burn</h2>
+        <p class="how" id="hv-burn-how"></p>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--done);border-color:var(--done)"></i>Earned</span>
+          <span><i class="sw" style="background:var(--ink);border-color:var(--ink)"></i>Spent (crew hours on the board)</span>
+          <span id="hv-plan-key" hidden><i class="sw" style="background:var(--muted);border-color:var(--muted)"></i>Planned</span>
+        </div>
+        <div class="hv-chart"><canvas id="hv-burn" role="img" aria-label="Cumulative earned, spent and planned hours by week"></canvas></div>
+        <div class="tw"><table class="hv-tbl" id="hv-clock"><thead><tr><th>Week of</th><th>Crew hours on the board</th><th>Time clock ELEC hours</th><th>Not logged on the board</th></tr></thead><tbody></tbody></table></div>
+        <p class="msg">Time clock hours are raw punch-in to punch-out for ELEC-class employees at Palestine, before lunch deductions, starting the week the clock went live. Supervisors (ELSP, ELPM) aren’t included.</p>
+      </section>
+
+      <section class="hv-sec" aria-labelledby="hv-h3">
+        <h2 id="hv-h3">Where the budget is going</h2>
+        <p class="how">Bar length is each drop type’s budget. Blue is hours earned, the black tick is hours spent. A red tick means spent has passed earned by more than 10%.</p>
+        <div id="hv-bars"></div>
+      </section>
+
+      <section class="hv-sec" aria-labelledby="hv-h4">
+        <h2 id="hv-h4">Things to sort out</h2>
+        <ul class="flags" id="hv-flags"></ul>
+      </section>
+
+      <p class="msg" id="hv-method"></p>
+    </div>
+  </div>
+</div>
+
+<div class="gate" id="gate" hidden>
+  <form class="gate-card" id="gate-form">
+    <div class="eyebrow">Palestine TX · Breakpack electrical</div>
+    <h2>Sign in to the board</h2>
+    <p class="msg">This computer remembers you after the first time. Your name goes on every entry you save.</p>
+    <label for="who" class="lab">Your name</label>
+    <input id="who" name="who" type="text" autocomplete="name" maxlength="60" required>
+    <label for="code" class="lab">Crew code</label>
+    <input id="code" name="code" type="password" autocomplete="current-password" required>
+    <p class="msg bad" id="gate-msg" role="alert" hidden></p>
+    <button class="btn primary" type="submit">Open the board</button>
+  </form>
+</div>
+<script>
+(function(){
+'use strict';
+const SHEET=7328943903297412, RT_SHEET=1932152139632516;
+const LETTERS=['N','P','Q','J','K','L','M','E','F','G','H'];
+const BLOCK={N:3,P:6,Q:9,J:12,K:15,L:18,M:21,E:24,F:27,G:30,H:33};
+const HRS_TITLE=l=>l==='N'?'# of Hours N':'# of hours '+l;
+const DESC={A2:'Product 5 mastless lift drive/ctrl',B1:'Product lift ctrl (UPS)',BP08:'Break pack trash baler',BP25:'BP floor conveyor network power cab.',BP26:'BP empty tote lift + NPC',BP27:'BP empty tote return lift + NPC',BP28:'Auto battery swapper power cab.',BP30:'Minibot dumb waiter lift',BP31:'Battery charge power',BP32:'Battery swapper (UPS)',D:'Bot charging system',H:'Maint. areas, laptops, accessories',K1:'Safety aisle access (UPS)',L1:'Safety driveway gate (UPS)',M:'Network IDF switch (UPS)',N:'Network IDF air cond',P:'Adapter cell network/PLC (UPS)',QQ:'Control room (UPS)',QQ1:'Control room',XX:'Aisle/driveway lighting'};
+const TYPES=Object.keys(DESC);
+const STEPS=['Conduit / pipe','Wire pulled','Terminated'],STEP_PCT=[40,40,20];
+const CREW_FALLBACK=['Colton Banta','Dakota Kirbow','Edys Lugo','Emmanuel Ordonez','Steve Banta','Zhakeem Holliday'];
+// Drops the print shows in each bay (row = between letter lines, col = between number lines)
+const BAYS={"F–E|10–11":{"L1":3},"F–E|7–8":{"L1":2},"F–E|8–9":{"L1":3},"F–E|9–10":{"L1":3},"G–F|8–9":{"BP28":6,"N":1},"G–F|9–10":{"BP28":6,"M":2},"H–G|8–9":{"BP28":3},"H–G|9–10":{"BP28":4},"J–H|8–9":{"BP28":6},"J–H|9–10":{"BP28":8},"K–J|8–9":{"BP28":3},"L–K|10–11":{"XX":1},"L–K|7–8":{"XX":1},"L–K|8–9":{"BP28":6,"H":1,"XX":1},"L–K|9–10":{"BP28":9,"H":1,"K1":1,"M":2,"N":1,"XX":1},"M–L|8–9":{"A2":2,"B1":2,"BP28":6,"D":3,"H":1,"K1":1},"M–L|9–10":{"A2":1,"B1":1,"BP28":3,"D":2},"N–M|10–11":{"H":1,"XX":1},"N–M|7–8":{"H":3,"K1":1,"XX":1},"N–M|8–9":{"BP26":1,"D":1},"N–M|9–10":{"BP26":1,"D":1},"P–N|10–11":{"BP08":1,"BP25":3,"P":3},"P–N|6–7":{"BP31":4,"H":3},"P–N|7–8":{"BP08":1,"BP25":3,"BP27":1,"H":1,"M":2,"N":1,"P":4},"P–N|8–9":{"H":1},"P–N|9–10":{"H":1},"Q–P|10–11":{"H":1,"XX":1},"Q–P|6–7":{"H":6,"QQ":2,"QQ1":3},"Q–P|8–9":{"BP31":6,"H":10},"Q–P|9–10":{"BP30":1,"BP31":6,"H":14,"P":1}};
+const ROWS=['Q–P','P–N','N–M','M–L','L–K','K–J','J–H','H–G','G–F','F–E'];
+const COLS=['6–7','7–8','8–9','9–10','10–11'];
+const rowLetter=r=>r.split('–')[1]; // the sheet names a bay by the line on its south side
+const PRINT_BAYS=JSON.parse(JSON.stringify(BAYS));
+// Make the bays agree with the sheet's scope: the sheet is the authority on which line a drop belongs to.
+// Drops sitting on the other side of a line move to the nearest row the sheet uses (same number bay when possible);
+// drops the plan didn't show go in the bay of that row that already holds that type, else its fullest bay.
+function reconcile(sheet){
+  const B=JSON.parse(JSON.stringify(PRINT_BAYS));
+  const rowOf=l=>ROWS.find(r=>rowLetter(r)===l);
+  const cnt=(r,t)=>COLS.reduce((a,c)=>a+((B[r+'|'+c]||{})[t]||0),0);
+  const add=(r,c,t,n)=>{const k=r+'|'+c;B[k]=B[k]||{};B[k][t]=(B[k][t]||0)+n;if(B[k][t]<=0)delete B[k][t];if(!Object.keys(B[k]).length)delete B[k]};
+  TYPES.forEach(t=>{if(!sheet[t])return;
+    const want={};ROWS.forEach(r=>want[r]=0);
+    LETTERS.forEach(l=>{const r=rowOf(l);if(r)want[r]+=sheet[t].L[l].scope});
+    const diff=r=>cnt(r,t)-want[r];
+    let guard=0;
+    while(guard++<400){
+      const sur=ROWS.filter(r=>diff(r)>0),def=ROWS.filter(r=>diff(r)<0);
+      if(!sur.length||!def.length)break;
+      let best=null;sur.forEach(a=>def.forEach(b=>{const d=Math.abs(ROWS.indexOf(a)-ROWS.indexOf(b));if(!best||d<best.d)best={a,b,d}}));
+      const n=Math.min(diff(best.a),-diff(best.b));
+      let left=n;COLS.forEach(c=>{if(!left)return;const have=(B[best.a+'|'+c]||{})[t]||0;const k=Math.min(have,left);if(k){add(best.a,c,t,-k);add(best.b,c,t,k);left-=k}});
+    }
+    ROWS.forEach(r=>{let d=diff(r);
+      if(d<0){const withT=COLS.filter(c=>(B[r+'|'+c]||{})[t]);const pick=withT[0]||COLS.slice().sort((x,y)=>{const s=k=>Object.values(B[r+'|'+k]||{}).reduce((a,b)=>a+b,0);return s(y)-s(x)})[0];add(r,pick,t,-d)}
+      else if(d>0){COLS.slice().reverse().forEach(c=>{if(!d)return;const have=(B[r+'|'+c]||{})[t]||0;const k=Math.min(have,d);if(k){add(r,c,t,-k);d-=k}})}});
+  });
+  Object.keys(BAYS).forEach(k=>delete BAYS[k]);Object.assign(BAYS,B);
+}
+
+const S={sheet:null,rt:null,err:{},stamp:{},sel:'L',open:null,draft:{},busy:false,msg:'',msgBad:false,crewNames:CREW_FALLBACK,conflict:null};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=v=>{const n=parseFloat(v);return isFinite(n)?n:0};
+const r1=n=>Math.round(n*10)/10;
+
+// ---------- derived numbers ----------
+function letterTotals(l){
+  let scope=0,done=0,mhArch=0,mhToday=0;
+  if(S.sheet)TYPES.forEach(t=>{const c=S.sheet[t]&&S.sheet[t].L[l];if(!c)return;scope+=c.scope;done+=Math.min(c.done,c.scope);mhToday+=c.mh});
+  if(S.rt)TYPES.forEach(t=>{mhArch+=(S.rt[t]&&S.rt[t][l])||0});
+  return {scope,done,mhArch,mhToday,mh:mhArch+mhToday};
+}
+function bayFill(){
+  // squares fill each letter row's bays west to east: terminated (green) first, then wire pulled (yellow), then conduit / pipe (orange)
+  const fill={};
+  ROWS.forEach(r=>{const l=rowLetter(r);const pos={};
+    COLS.forEach(c=>{const b=BAYS[r+'|'+c];if(!b)return;const f={};
+      Object.keys(b).forEach(t=>{const x=S.sheet&&S.sheet[t]?S.sheet[t].L[l]:null,s=x&&x.s?x.s:[0,0,0];const st=[];let cr=0;
+        for(let i=0;i<b[t];i++){const k=(pos[t]||0)+i;const v=k<s[2]?3:k<s[1]?2:k<s[0]?1:0;st.push(v);cr+=v===3?1:v===2?0.8:v===1?0.4:0}
+        pos[t]=(pos[t]||0)+b[t];f[t]={st,cr:r1(cr)}});fill[r+'|'+c]=f;});});
+  return fill;
+}
+
+// ---------- rendering ----------
+function renderGrid(){
+  const fill=bayFill();
+  let h='<div></div>';
+  COLS.forEach((c,i)=>{const p=c.split('–');h+='<div class="ch">'+(p[0]==='6'?'<div class="bub" style="visibility:hidden"></div>':'<div class="bub">'+p[0]+'</div>')+(i===COLS.length-1?'<div class="bub r">'+p[1]+'</div>':'')+'</div>'});
+  ROWS.forEach((r,ri)=>{const p=r.split('–'),l=p[1];
+    h+='<div class="rl'+(S.sel===l?' sel':'')+'"><div class="bub">'+p[0]+'</div>'+(ri===ROWS.length-1?'<div class="bub s">'+p[1]+'</div>':'')+'sheet<br><b>'+l+'</b></div>';
+    COLS.forEach(c=>{const key=r+'|'+c,b=BAYS[key];
+      if(!b){h+='<div class="bay empty" aria-hidden="true"></div>';return}
+      const f=fill[key]||{};let tot=0,dn=0,groups='';
+      Object.keys(b).forEach(t=>{const ft=f[t]||{st:[],cr:0};tot+=b[t];dn+=ft.cr;let sq='';for(let i=0;i<b[t];i++){const v=ft.st[i]||0;sq+='<i class="sq'+(v?' st'+v:'')+'"></i>'}
+        const cnt=[1,2,3].map(v=>ft.st.filter(x=>x===v).length);
+        groups+='<div class="tg"><span class="c">'+t+'</span><div class="sqs" role="img" aria-label="'+t+': '+b[t]+' drops, '+cnt[2]+' terminated, '+cnt[1]+' wire pulled, '+cnt[0]+' conduit or pipe only">'+sq+'</div></div>'});
+      dn=r1(dn);const pct=tot?Math.round(100*dn/tot):0;
+      h+='<div class="bay'+(dn>=tot&&tot?' full':'')+(S.sel===l?' sel':'')+'"><button type="button" class="bh" data-letter="'+l+'" aria-label="Open letter line '+l+' (bay '+c+' / '+r+')"><span>'+dn+'/'+tot+'</span><span>'+c+'</span></button><div class="bar"><i style="width:'+pct+'%"></i></div>'+groups+'</div>';});
+    if(r==='N–M')h+='<div class="split">Print plan 1 above · plan 2 below</div>';});
+  document.getElementById('grid').innerHTML=h;
+}
+function renderKpis(){
+  let scope=0,done=0,arch=0,today=0;
+  LETTERS.forEach(l=>{const t=letterTotals(l);scope+=t.scope;done+=t.done;arch+=t.mhArch;today+=t.mhToday});
+  const k=[
+    ['Drops complete',S.sheet?r1(done)+'/'+scope:'—',S.sheet?(scope?Math.round(100*done/scope):0)+'% of scope':'waiting for the sheet'],
+    ['Man-hours to date',S.rt||S.sheet?r1(arch+today):'—','earlier '+r1(arch)+' + '+dayWord()+' '+r1(today)],
+    ['MH per finished drop',done?r1((arch+today)/done):'—',done?'all drop types · partial steps count':'no drops started yet'],
+    ['Drops done today',S.sheet?'—':'—','counted at tonight’s archive']].slice(0,3);
+  document.getElementById('kpis').innerHTML=k.map(x=>'<div class="kpi"><span class="l">'+x[0]+'</span><span class="v">'+esc(x[1])+'</span><span class="s">'+esc(x[2])+'</span></div>').join('');
+}
+function printCount(t,l){let n=0;ROWS.filter(r=>rowLetter(r)===l).forEach(r=>COLS.forEach(c=>{const b=BAYS[r+'|'+c];if(b&&b[t])n+=b[t]}));return n}
+function renderSide(){
+  const l=S.sel,T=letterTotals(l),el=document.getElementById('side');
+  let h='<div class="sh"><span class="t">Letter line '+l+'</span><span class="m">'+(S.sheet?r1(T.done)+' of '+T.scope+' drops done · ':'')+r1(T.mh)+' MH to date ('+r1(T.mhToday)+' '+dayWord()+')</span></div><div class="sb">';
+  if(!S.sheet){h+='<div class="msg">'+(S.err.a?esc(S.err.a):'Loading line '+l+'…')+'</div></div>';el.innerHTML=h;return}
+  const types=TYPES.filter(t=>S.sheet[t]&&S.sheet[t].L[l].scope>0);
+  if(!types.length)h+='<div class="msg">The sheet has no drops on line '+l+'.</div>';
+  h+='<span class="lab">Drops on this line</span>';
+  types.forEach(t=>{const c=S.sheet[t].L[l],arch=(S.rt&&S.rt[t]&&S.rt[t][l])||0,open=S.open===t;
+    const s=c.s||[0,0,0],dd=c.d||[0,0,0];
+    let steps='<div class="steps">';
+    STEPS.forEach((nm,k)=>{const max=k?s[k-1]:c.scope,min=k<2?s[k+1]:0;
+      steps+='<div class="srow"><i class="sq st'+(k+1)+'"></i><span class="sn">'+nm+' <span>+'+STEP_PCT[k]+'%</span></span>'+
+        '<button class="stp" type="button" data-act="dec" data-k="'+(k+1)+'" data-t="'+t+'" aria-label="One fewer '+t+' at '+nm+' on '+l+'"'+(S.busy||s[k]<=min?' disabled':'')+'>−</button>'+
+        '<span class="cnt">'+s[k]+'/'+max+'</span>'+
+        '<button class="stp" type="button" data-act="inc" data-k="'+(k+1)+'" data-t="'+t+'" aria-label="One more '+t+' at '+nm+' on '+l+'"'+(S.busy||s[k]>=max?' disabled':'')+'>+</button></div>'});
+    steps+='</div>';
+    const moved=STEPS.map((nm,k)=>dd[k]?(dd[k]>0?'+':'')+dd[k]+' '+nm.toLowerCase():'').filter(Boolean).join(', ');
+    h+='<div class="trow"><div class="r1"><span class="code">'+t+'</span><span class="desc">'+esc(DESC[t])+'</span><span class="done">'+r1(c.done)+'/'+c.scope+'</span></div>'+steps+
+      '<div class="today">'+r1(arch+c.mh)+' MH to date · '+dayWord()+': '+(c.crew.length?esc(c.crew.join(', '))+' × '+c.hrs+' h = '+r1(c.mh)+' MH':'no hours logged')+(moved?' · '+esc(moved):'')+(c.by?' · by '+esc(c.by):'')+'</div>';
+    if(open){const d=S.draft,cur=c.crew;
+      h+='<div class="today">'+(d.mode==='replace'?'Editing '+dayWord()+'’s entry. Tap anyone who wasn’t on it to take them off.':(cur.length?'Adding people to '+dayWord()+'’s entry ('+esc(cur.join(', '))+' at '+c.hrs+' h each).':'Who worked '+t+' on line '+l+' '+dayWord()+'?'))+'</div>'+
+        '<div class="crew" role="group" aria-label="Crew on '+t+'">'+S.crewNames.map(n=>{const already=d.mode==='add'&&cur.includes(n);const on=already||d.crew.includes(n);return '<button type="button" class="cr'+(on?' on':'')+'" data-act="crew" data-n="'+esc(n)+'" aria-pressed="'+on+'"'+(already?' disabled':'')+'>'+esc(n)+'</button>'}).join('')+'</div>'+
+        '<div class="hrs"><label for="hrs-'+t+'">Hours each</label><input id="hrs-'+t+'" type="number" inputmode="decimal" min="0" max="24" step="0.5" value="'+d.hrs+'"></div>';
+      if(S.conflict&&S.conflict.t===t)h+='<div class="note">An entry holds one “hours each”. Save the new people at '+S.conflict.hrs+' h too, or change the entry.</div><div class="acts"><button class="btn primary" type="button" data-act="usehrs">Save at '+S.conflict.hrs+' h each</button><button class="btn" type="button" data-act="forcereplace">Change the entry</button></div>';
+      else h+='<div class="acts"><button class="btn primary" type="button" data-act="save"'+(S.busy?' disabled':'')+'>'+(d.mode==='replace'?'Save entry':'Add to '+dayWord())+'</button><button class="btn" type="button" data-act="cancel">Cancel</button>'+(d.mode==='add'&&cur.length?'<button class="btn" type="button" data-act="replace">Change the entry</button>':'')+'</div>';}
+    else h+='<div><button class="btn" type="button" data-act="open" data-t="'+t+'"'+(S.busy?' disabled':'')+'>Log crew &amp; hours for '+dayWord()+'</button></div>';
+    h+='</div>';});
+  if(S.msg)h+='<div class="msg'+(S.msgBad?' bad':'')+'" role="status">'+esc(S.msg)+'</div>';
+  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Palestine Electrical Manhours Log</b> in Smartsheet (one row per day, line and drop type), and + / − copy the Done credit (40% conduit / pipe, 40% wire pulled, 20% terminated) to Palestine Breakpack Electric. Pick an earlier work date at the top to log a day you missed.</div></details>';
+  h+='</div>';el.innerHTML=h;
+}
+function renderStatus(){
+  const dot=document.getElementById('dot'),st=document.getElementById('stat'),bn=document.getElementById('banner');
+  const errs=Object.values(S.err).filter(Boolean);
+  if(errs.length){dot.className='dot err';st.textContent='Not updating: '+errs[0]}
+  else if(S.sheet){dot.className='dot live';const ts=S.stamp.a?new Date(S.stamp.a):null;st.textContent='Saved on the board · updated'+(ts?' '+ts.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'')}
+  else{dot.className='dot';st.textContent='Connecting…'}
+  const n=S.unsynced||0;bn.hidden=!n;bn.className='banner';
+  if(n)bn.innerHTML=n+' saved '+(n===1?'entry hasn’t':'entries haven’t')+' reached Smartsheet yet. They’re safe on the board and retry on the next save. <button class="btn" type="button" data-act="resync" style="margin-left:8px"'+(S.busy?' disabled':'')+'>Copy to Smartsheet now</button>';
+}
+function renderTally(){
+  const el=document.getElementById('tally');
+  if(!S.sheet){el.innerHTML='<tbody><tr><td class="msg">'+(S.err.a?esc(S.err.a):'Loading drop totals…')+'</td></tr></tbody>';return}
+  let TS=0,TD=0,TM=0,TT=0,rows='';
+  TYPES.forEach(t=>{const r=S.sheet[t];if(!r)return;let s=0,d=0,mh=0,today=0,lines='';
+    LETTERS.forEach(l=>{const c=r.L[l];if(!c.scope)return;const dn=Math.min(c.done,c.scope);s+=c.scope;d+=dn;today+=c.mh;mh+=c.mh+((S.rt&&S.rt[t]&&S.rt[t][l])||0);
+      lines+='<button type="button" class="ln'+(dn>=c.scope?' full':'')+'" data-line="'+l+'" aria-label="Open line '+l+'">'+l+' '+r1(dn)+'/'+c.scope+'</button>'});
+    if(!s)return;TS+=s;TD+=d;TM+=mh;TT+=today;const pct=Math.round(100*d/s);
+    rows+='<tr><td class="code">'+t+'</td><td class="desc">'+esc(DESC[t])+'</td><td><div class="pb"><div class="bar"><i style="width:'+pct+'%"></i></div><span>'+r1(d)+'/'+s+'</span></div></td><td><div class="lines">'+lines+'</div></td><td class="n">'+r1(today)+'</td><td class="n">'+r1(mh)+'</td><td class="n">'+(d?r1(mh/d):'—')+'</td></tr>'});
+  const pct=TS?Math.round(100*TD/TS):0;
+  el.innerHTML='<thead><tr><th>Drop</th><th>Description</th><th>Done / scope</th><th>By letter line</th><th class="n">MH '+dayWord()+'</th><th class="n">MH to date</th><th class="n">MH / drop</th></tr></thead><tbody>'+rows+'</tbody>'+
+    '<tfoot><tr><td class="code">All</td><td class="desc">'+pct+'% complete</td><td><div class="pb"><div class="bar"><i style="width:'+pct+'%"></i></div><span>'+r1(TD)+'/'+TS+'</span></div></td><td></td><td class="n">'+r1(TT)+'</td><td class="n">'+r1(TM)+'</td><td class="n">'+(TD?r1(TM/TD):'—')+'</td></tr></tfoot>';
+}
+function render(){const y=window.scrollY;renderStatus();renderKpis();renderGrid();renderSide();renderTally();if(Math.abs(window.scrollY-y)>1)window.scrollTo(0,y)}
+document.getElementById('tally').addEventListener('click',e=>{const b=e.target.closest('[data-line]');if(!b)return;S.sel=b.dataset.line;S.open=null;S.msg='';render();document.getElementById('side').scrollIntoView({behavior:'smooth',block:'start'})});
+
+
+// ---------- server ----------
+const CONFIG={
+  url:'https://vbfspyruvaoqmhuutphl.supabase.co/functions/v1/palestine-electric-api',
+  hoursUrl:'https://vbfspyruvaoqmhuutphl.supabase.co/functions/v1/electric-hours-api',
+  key:'sb_publishable_X6AsZvhKdglY2PBYvyb-aw_1vnfYbe3' // publishable key: safe to be public
+};
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+const CODE_KEY='palestineElCrewCode',NAME_KEY='palestineElName';
+let CODE=store.get(CODE_KEY)||'',NAME=store.get(NAME_KEY)||'';
+S.date='';S.today='';S.unsynced=0;
+
+async function api(action,extra){
+  const res=await fetch(CONFIG.url,{method:'POST',headers:{'Content-Type':'application/json',apikey:CONFIG.key},
+    body:JSON.stringify(Object.assign({action,code:CODE,name:NAME,date:S.date||undefined},extra||{}))});
+  let body=null;try{body=await res.json()}catch(e){}
+  if(!res.ok){const err=new Error((body&&body.message)||('The board’s server returned '+res.status+'.'));err.code=(body&&body.error)||('http_'+res.status);err.body=body||{};throw err}
+  return body;
+}
+function apply(d){
+  S.sheet=d.types;
+  // past man-hours per cell = all entries minus the day on screen
+  S.rt={};TYPES.forEach(t=>{S.rt[t]={};LETTERS.forEach(l=>{const c=d.types[t].L[l];S.rt[t][l]=Math.max(0,(c.mhTotal||0)-(c.mh||0))})});
+  if(Array.isArray(d.crewNames)&&d.crewNames.length)S.crewNames=d.crewNames;
+  S.date=d.date;S.today=d.today;S.unsynced=d.unsynced||0;
+  S.stamp.a=Date.parse(d.fetchedAt)||Date.now();S.err.a=null;
+  const wd=document.getElementById('wd');if(wd){wd.max=d.today;wd.value=d.date}
+  reconcile(S.sheet);
+}
+const dayWord=()=>(!S.date||S.date===S.today)?'today':new Date(S.date+'T12:00:00').toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'});
+
+// ---------- sign-in ----------
+const gate=document.getElementById('gate'),gateMsg=document.getElementById('gate-msg');
+function showGate(msg){gate.hidden=false;gateMsg.textContent=msg||'';gateMsg.hidden=!msg;document.getElementById('who').value=NAME;setTimeout(()=>{const i=document.getElementById(NAME?'code':'who');if(i)i.focus()},50)}
+function hideGate(){gate.hidden=true}
+document.getElementById('gate-form').addEventListener('submit',e=>{e.preventDefault();
+  const n=document.getElementById('who').value.trim(),v=document.getElementById('code').value.trim();if(!n||!v)return;
+  NAME=n;CODE=v;store.set(NAME_KEY,n);store.set(CODE_KEY,v);gateMsg.hidden=true;load();if(TAB==='hours')loadHours()});
+document.getElementById('signout').addEventListener('click',()=>{CODE='';store.del(CODE_KEY);S.sheet=null;S.rt=null;H=null;render();showGate()});
+document.getElementById('wd').addEventListener('change',e=>{const v=e.target.value;if(!v)return;S.date=v;S.open=null;S.msg='';S.conflict=null;load()});
+
+// ---------- quick steps: show the click at once, save in order behind the scenes ----------
+let stepQueue=Promise.resolve(),stepsPending=0;
+const credit=s=>r1(0.4*s[0]+0.4*s[1]+0.2*s[2]);
+function stepClick(t,l,k,delta){
+  const c=S.sheet&&S.sheet[t]&&S.sheet[t].L[l];if(!c)return;
+  const s=(c.s||[0,0,0]).slice(),i=k-1,max=i?s[i-1]:c.scope,min=i<2?s[i+1]:0,v=s[i]+delta;
+  if(v>max||v<min)return;
+  s[i]=v;c.s=s;c.done=credit(s);c.d=(c.d||[0,0,0]).slice();c.d[i]+=delta;c.dropsToday=credit(c.d);
+  stepsPending++;S.msg='Saving…';S.msgBad=false;render();
+  const payload={type:t,letter:l,step:k,delta};
+  stepQueue=stepQueue.then(async()=>{
+    try{
+      const r=await api('step',payload);stepsPending--;
+      if(!stepsPending){apply(r.data);S.msg=t+' on line '+l+': '+r1(r.result.done)+' of '+r.result.scope+' done. Saved.';S.msgBad=false}
+    }catch(e){
+      stepsPending--;S.msgBad=true;
+      if(e.code==='wrong_code'){CODE='';store.del(CODE_KEY);showGate('The crew code changed. Enter the new one.');S.msg='Not saved.'}
+      else if(e instanceof TypeError)S.msg='Lost connection while saving. The board is reloading to show what was saved.';
+      else S.msg='Not saved: '+e.message+' The board reloaded to show the current numbers.';
+      if(!stepsPending){const m=S.msg;await load();S.msg=m;S.msgBad=true}
+    }
+    render();
+  });
+}
+
+let loading=false;
+async function load(){
+  if(!CODE||!NAME){showGate();return}
+  if(loading)return;loading=true;
+  try{apply(await api('read'));hideGate()}
+  catch(e){
+    if(e.code==='wrong_code'){CODE='';store.del(CODE_KEY);S.sheet=null;showGate('That crew code isn’t right. Ask your site lead for it.')}
+    else if(e.code==='future_date'||e.code==='old_date'||e.code==='bad_date'){S.date='';S.msg=e.message;S.msgBad=true;loading=false;return load()}
+    else if(e instanceof TypeError)S.err.a='can’t reach the board’s server. Check the connection; the board keeps the last numbers it had.';
+    else S.err.a=e.message;
+  }
+  loading=false;render();
+}
+setInterval(()=>{if(document.visibilityState==='visible'&&!S.busy&&!S.open&&!stepsPending)load()},60000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!S.open&&!stepsPending)load()});
+document.getElementById('refresh').addEventListener('click',()=>{S.msg='';load();if(TAB==='hours')loadHours()});
+document.getElementById('banner').addEventListener('click',async e=>{if(!e.target.closest('[data-act="resync"]')||S.busy)return;
+  S.busy=true;render();try{const r=await api('resync');apply(r.data);S.msg=r.result.left?(r.result.left+' still not copied. Smartsheet may be down; try again later.'):'Everything is copied to Smartsheet.';S.msgBad=!!r.result.left}catch(err){S.msg='Copy failed: '+err.message;S.msgBad=true}S.busy=false;render()});
+
+async function write(action,payload,okText){
+  S.busy=true;S.msg='Saving…';S.msgBad=false;S.conflict=null;render();
+  try{
+    const r=await api(action,payload);apply(r.data);S.open=null;
+    S.msg=okText(r.result)+(r.warning?' Saved on the board, but the copy to Smartsheet didn’t go through yet; it retries on the next save.':'');
+  }catch(e){
+    S.msgBad=true;
+    if(e.code==='hours_mismatch'){S.conflict={t:payload.type,hrs:e.body.hrs,crew:e.body.crew||[]};S.msg=e.message}
+    else if(e.code==='wrong_code'){CODE='';store.del(CODE_KEY);showGate('The crew code changed. Enter the new one.');S.msg='Not saved.'}
+    else if(e instanceof TypeError)S.msg='Lost connection while saving. Tap Refresh to see whether it went through before trying again.';
+    else S.msg='Not saved: '+e.message;
+  }
+  S.busy=false;render();
+}
+
+// ---------- events ----------
+document.getElementById('grid').addEventListener('click',e=>{const b=e.target.closest('[data-letter]');if(!b)return;S.sel=b.dataset.letter;S.open=null;S.msg='';S.conflict=null;render();
+  if(window.matchMedia('(max-width: 1100px)').matches)document.getElementById('side').scrollIntoView({behavior:'smooth',block:'start'})});
+function hoursInput(){const i=document.getElementById('hrs-'+S.open);return i?num(i.value):S.draft.hrs}
+document.getElementById('side').addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||!S.sheet||S.busy)return;const a=b.dataset.act,t=b.dataset.t||S.open,l=S.sel;
+  const c=t&&S.sheet[t]?S.sheet[t].L[l]:null;
+  if(a==='inc'||a==='dec'){stepClick(t,l,+b.dataset.k,a==='inc'?1:-1)}
+  else if(a==='open'){S.open=t;S.conflict=null;S.msg='';S.draft={crew:[],hrs:c.hrs||10,mode:'add'};render()}
+  else if(a==='replace'){S.draft={crew:c.crew.slice(),hrs:hoursInput(),mode:'replace'};S.conflict=null;render()}
+  else if(a==='cancel'){S.open=null;S.conflict=null;S.msg='';render()}
+  else if(a==='crew'){S.draft.hrs=hoursInput();const n=b.dataset.n;const i=S.draft.crew.indexOf(n);i<0?S.draft.crew.push(n):S.draft.crew.splice(i,1);render()}
+  else if(a==='save'||a==='usehrs'){
+    const hrs=a==='usehrs'?S.conflict.hrs:hoursInput();const d=S.draft;
+    if(d.mode==='add'&&!d.crew.length){S.msg='Pick at least one person to add.';S.msgBad=true;render();return}
+    if(!(hrs>0)&&d.crew.length){S.msg='Enter the hours each person worked.';S.msgBad=true;render();return}
+    write('crew',{type:t,letter:l,crew:d.crew,hrs,mode:d.mode},r=>r.crew.length?('Saved '+t+' on line '+l+' for '+dayWord()+': '+r.crew.length+' × '+r.hrs+' h = '+r1(r.mh)+' MH.'):('Cleared '+dayWord()+'’s hours for '+t+' on line '+l+'.'))}
+  else if(a==='forcereplace'){const k=S.conflict;S.draft={crew:Array.from(new Set(k.crew.concat(S.draft.crew))),hrs:hoursInput(),mode:'replace'};S.conflict=null;S.msg='';render()}
+});
+
+// ---------- Hours vs budget tab ----------
+// Budget from el_budget (the SOW), progress and crew hours from this board, raw ELEC punches from the time clock.
+// Budget rows: Supabase → Table Editor → el_budget. Planned line: start/finish dates in el_plan.
+let TAB='board',H=null,hChart=null,chartLib=null,hLoading=false;
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const r2=n=>(Math.round(n*100)/100).toFixed(2);
+const tone=x=>x==null?'':x>=1?'good':x>=0.9?'warn':'bad';
+const toneTxt=x=>x==null?'':x>=1?'tg-ok':x>=0.9?'tg-warn':'tg-bad';
+const wkLabel=wk=>new Date(wk+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+
+function setTab(t){
+  TAB=t;
+  document.getElementById('tab-board').hidden=t!=='board';
+  document.getElementById('tab-hours').hidden=t!=='hours';
+  document.getElementById('tab-btn-board').setAttribute('aria-selected',String(t==='board'));
+  document.getElementById('tab-btn-hours').setAttribute('aria-selected',String(t==='hours'));
+  document.querySelector('.wdl').hidden=t==='hours';
+  try{history.replaceState(null,'',t==='hours'?'#hours':location.pathname+location.search)}catch(e){}
+  if(t==='hours'){if(H)renderHours();loadHours()}
+}
+document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b&&b.dataset.tab!==TAB)setTab(b.dataset.tab)});
+document.querySelector('.tabs').addEventListener('keydown',e=>{if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;const n=TAB==='board'?'hours':'board';setTab(n);document.getElementById('tab-btn-'+n).focus()});
+
+function loadChartLib(){
+  if(window.Chart)return Promise.resolve();
+  if(!chartLib)chartLib=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';s.onload=res;s.onerror=()=>{chartLib=null;rej(new Error('chart'))};document.head.appendChild(s)});
+  return chartLib;
+}
+async function loadHours(){
+  const msg=document.getElementById('hv-msg');
+  if(!CODE){showGate();return}
+  if(hLoading)return;hLoading=true;
+  if(!H)msg.textContent='Loading hours…';
+  try{
+    const res=await fetch(CONFIG.hoursUrl,{method:'POST',headers:{'Content-Type':'application/json',apikey:CONFIG.key},body:JSON.stringify({site:'palestine',code:CODE})});
+    let body=null;try{body=await res.json()}catch(e){}
+    if(res.status===401){CODE='';store.del(CODE_KEY);showGate('That crew code isn’t right. Ask your site lead for it.');hLoading=false;return}
+    if(!res.ok)throw new Error((body&&body.message)||('The hours server returned '+res.status+'.'));
+    H=body;msg.textContent='';
+    try{await loadChartLib()}catch(e){msg.textContent='The chart couldn’t load. The numbers below are still current.'}
+    renderHours();
+  }catch(e){
+    msg.textContent=e instanceof TypeError?'Can’t reach the hours server. Check the connection and tap Refresh.':e.message;
+    msg.className='msg bad';
+  }
+  hLoading=false;
+}
+
+function renderHours(){
+  if(!H)return;
+  document.getElementById('hv-msg').className='msg';
+  document.getElementById('hv-body').hidden=false;
+  const W=H.weights;
+  const cells=Object.fromEntries(H.cells.map(c=>[c.drop_type,c]));
+  const mh=Object.fromEntries(H.mh.map(m=>[m.drop_type,m.mh||0]));
+  const rows=H.budget.map(b=>{
+    const c=cells[b.drop_type],scope=c?c.scope:0;
+    const pct=c&&scope?(W[0]*c.s1+W[1]*c.s2+W[2]*c.s3)/scope:0;
+    const spent=mh[b.drop_type]||0,earned=b.budget*pct;
+    return Object.assign({},b,{desc:DESC[b.drop_type]||b.description||'',scope,onBoard:!!c,pct,spent,earned,ratio:spent>0?earned/spent:null});
+  }).sort((a,b)=>b.budget-a.budget);
+  const byType=Object.fromEntries(rows.map(r=>[r.drop_type,r]));
+  const tB=rows.reduce((s,r)=>s+r.budget,0),tE=rows.reduce((s,r)=>s+r.earned,0),tS=H.mh.reduce((s,m)=>s+(m.mh||0),0);
+  const tR=tS>0?tE/tS:null,done=tB?tE/tB:0;
+
+  document.getElementById('hv-lede').innerHTML='Electrical has earned <b>'+fmt(tE)+'</b> of its <b>'+fmt(tB)+'</b> budgeted hours and spent <b>'+fmt(tS)+'</b> crew hours getting there.';
+  const ratioEl=document.getElementById('hv-ratio');ratioEl.textContent=tR==null?'–':r2(tR);ratioEl.className='hv-ratio '+toneTxt(tR);
+  document.getElementById('hv-note').innerHTML=tR==null?'No crew hours logged yet.':
+    'Earned ÷ spent. '+(tR>=1?'At or above 1.00, the work is coming in at or under budget.':'Below 1.00 means each hour spent is buying less than an hour of budgeted work.')+
+    (tE>0?' At this rate the full scope would take about <b>'+fmt(tS/done)+'</b> hours against '+fmt(tB)+' budgeted. The job is '+Math.round(done*100)+'% complete, so this forecast will move a lot early on.':'');
+
+  document.getElementById('hv-heat').innerHTML=rows.map(r=>{
+    const started=r.spent>0||r.pct>0,cls=!started?'':r.spent>0?tone(r.ratio):'good';
+    const rt=r.spent>0?' · '+r2(r.ratio):started?' · no hours':'';
+    return '<div class="cell '+cls+'" title="'+esc(r.desc)+'"><div class="t">'+esc(r.drop_type)+' <span>'+Math.round(r.pct*100)+'%</span></div><div class="d">'+esc(r.desc)+'</div><div class="n">'+fmt(r.spent)+' / '+fmt(r.budget)+' h'+rt+'</div></div>'}).join('');
+
+  const max=Math.max(...rows.map(r=>r.budget),1);
+  document.getElementById('hv-bars').innerHTML=rows.map(r=>{
+    const over=r.spent>0&&r.ratio<0.9;
+    const tick=r.spent>0?'<div class="act'+(over?' over':'')+'" style="left:'+Math.min(r.spent/r.budget*100,100)+'%"></div>':'';
+    const rt=r.spent>0?'<b class="'+toneTxt(r.ratio)+'">'+r2(r.ratio)+'</b>':'–';
+    return '<div class="brow"><div class="k"><b>'+esc(r.drop_type)+'</b><span>'+fmt(r.budget)+' h</span></div><div style="width:'+(r.budget/max*100)+'%;min-width:24px"><div class="trk"><div class="ern" style="width:'+(r.pct*100)+'%"></div>'+tick+'</div></div><div class="v">'+fmt(r.earned)+' / '+fmt(r.spent)+' h · '+rt+'</div></div>'}).join('');
+
+  // weekly cumulative earned and spent
+  const weeks=[...new Set([...H.weekly.map(w=>w.wk),...H.clock.map(c=>c.wk)])].sort();
+  let cE=0,cS=0;const E=[],Sp=[],boardWk={};
+  weeks.forEach(wk=>{H.weekly.filter(x=>x.wk===wk).forEach(w=>{const b=byType[w.drop_type];cS+=w.mh||0;boardWk[wk]=(boardWk[wk]||0)+(w.mh||0);
+    if(b&&b.scope)cE+=(b.budget/b.scope)*(W[0]*w.d1+W[1]*w.d2+W[2]*w.d3)});E.push(Math.round(cE));Sp.push(Math.round(cS))});
+  let P=null;
+  if(H.plan&&H.plan.plan_start&&H.plan.plan_finish){const a=Date.parse(H.plan.plan_start),z=Date.parse(H.plan.plan_finish);
+    P=weeks.map(wk=>{const t=Date.parse(wk)+7*864e5;return Math.round(tB*Math.min(Math.max((t-a)/(z-a),0),1))})}
+  document.getElementById('hv-plan-key').hidden=!P;
+  document.getElementById('hv-burn-how').textContent='Cumulative hours by week. When earned falls below spent, the job is using more hours than the finished work is worth.'+(P?'':' To add a planned line, enter start and finish dates in Supabase → Table Editor → el_plan.');
+  drawBurn(weeks,E,Sp,P);
+
+  const clock=Object.fromEntries(H.clock.map(c=>[c.wk,c.hrs]));
+  document.querySelector('#hv-clock tbody').innerHTML=weeks.slice().reverse().map(wk=>{const b=boardWk[wk]||0,c=clock[wk];const gap=c==null?null:c-b;
+    return '<tr><td>'+wkLabel(wk)+'</td><td>'+fmt(b)+'</td><td>'+(c==null?'–':fmt(c))+'</td><td class="'+(gap!=null&&gap>c*0.1?'tg-bad':'')+'">'+(gap==null?'–':fmt(gap))+'</td></tr>'}).join('');
+
+  const flags=[];
+  rows.forEach(r=>{
+    if(r.onBoard&&r.sow_qty!=null&&r.sow_qty!==r.scope)flags.push(esc(r.drop_type)+': the SOW has '+r.sow_qty+' drops, the board has '+r.scope+'. Percent complete uses the board’s count.');
+    if(!r.onBoard)flags.push(esc(r.drop_type)+' ('+fmt(r.budget)+' h) isn’t a drop type on the board, so it can’t earn hours yet.');
+  });
+  H.cells.forEach(c=>{if(!byType[c.drop_type])flags.push(esc(c.drop_type)+' is on the board but has no budget row.')});
+  const clockTot=H.clock.reduce((s,c)=>s+(c.hrs||0),0),boardSince=weeks.filter(wk=>clock[wk]!=null).reduce((s,wk)=>s+(boardWk[wk]||0),0);
+  if(clockTot-boardSince>40)flags.push('Since the time clock went live, ELEC punches total '+fmt(clockTot)+' hours but the board has '+fmt(boardSince)+'. The difference isn’t in the earned-vs-spent numbers above.');
+  document.getElementById('hv-flags').innerHTML=flags.length?flags.map(f=>'<li>'+f+'</li>').join(''):'<li>Nothing to sort out.</li>';
+
+  document.getElementById('hv-method').textContent='Earned = budget hours × percent complete, where each drop counts '+W[0]*100+'% at conduit / pipe, '+(W[0]+W[1])*100+'% at wire pulled and 100% at terminated. Spent = crew members × hours each, as logged on the board. Budget rows live in Supabase → Table Editor → el_budget. Updated '+new Date(H.fetchedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.';
+}
+
+function drawBurn(labels,E,Sp,P){
+  if(!window.Chart)return;
+  const cs=getComputedStyle(document.documentElement),col=v=>cs.getPropertyValue(v).trim();
+  const ds=[
+    {label:'Earned',data:E,borderColor:col('--done'),backgroundColor:col('--done'),borderWidth:2.5,pointRadius:3,tension:.15},
+    {label:'Spent',data:Sp,borderColor:col('--ink'),backgroundColor:col('--ink'),borderWidth:2.5,pointRadius:3,borderDash:[6,4],tension:.15}];
+  if(P)ds.push({label:'Planned',data:P,borderColor:col('--muted'),borderWidth:2,pointRadius:0,borderDash:[2,4]});
+  if(hChart)hChart.destroy();
+  hChart=new Chart(document.getElementById('hv-burn'),{type:'line',data:{labels:labels.map(wkLabel),datasets:ds},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw)+' h'}}},
+      scales:{x:{grid:{display:false},ticks:{color:col('--muted')}},y:{beginAtZero:true,grid:{color:col('--line')},ticks:{color:col('--muted'),callback:v=>fmt(v)}}}}});
+}
+
+render();
+load();
+if(location.hash==='#hours')setTab('hours');
+})();
+</script>
+</body>
+</html>
