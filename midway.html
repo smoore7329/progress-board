@@ -15,6 +15,7 @@
   --hatch:#E8EAE5; --done:#1F6FB2; --done-soft:#E1ECF7; --part:#C27C0A; --part-soft:#FFF3DC;
   --warn-ink:#7A4B00; --bad:#B3261E; --bad-soft:#FBE9E7; --chip-on:#E1ECF7; --chip-on-ink:#164F80;
   --sq-off-border:#848B94; --head:#1B1F23; --head-ink:#FFFFFF; --head-muted:#B8BEC6;
+  --ok:#2E7D4F; --ok-soft:#E3F2E8;
   --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
   --mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
 }
@@ -22,12 +23,14 @@
   --bg:#14171A; --panel:#1C2024; --ink:#E7E9EC; --muted:#A3AAB3; --line:#30363C; --grid:#C9CED4;
   --hatch:#22272C; --done:#5AA2E6; --done-soft:#1D3247; --part:#E3A43A; --part-soft:#3A2E17;
   --warn-ink:#F2C374; --bad:#F2867C; --bad-soft:#3B1E1C; --chip-on:#1D3247; --chip-on-ink:#A9CDF2;
-  --sq-off-border:#7D858F; --head:#0E1012; --head-ink:#F2F4F6; --head-muted:#98A0AA; color-scheme:dark}}
+  --sq-off-border:#7D858F; --head:#0E1012; --head-ink:#F2F4F6; --head-muted:#98A0AA;
+  --ok:#6CC28F; --ok-soft:#183326; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#14171A; --panel:#1C2024; --ink:#E7E9EC; --muted:#A3AAB3; --line:#30363C; --grid:#C9CED4;
   --hatch:#22272C; --done:#5AA2E6; --done-soft:#1D3247; --part:#E3A43A; --part-soft:#3A2E17;
   --warn-ink:#F2C374; --bad:#F2867C; --bad-soft:#3B1E1C; --chip-on:#1D3247; --chip-on-ink:#A9CDF2;
-  --sq-off-border:#7D858F; --head:#0E1012; --head-ink:#F2F4F6; --head-muted:#98A0AA; color-scheme:dark}
+  --sq-off-border:#7D858F; --head:#0E1012; --head-ink:#F2F4F6; --head-muted:#98A0AA;
+  --ok:#6CC28F; --ok-soft:#183326; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45}
 .wrap{max-width:1440px;margin:0 auto;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
@@ -141,6 +144,47 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
 [hidden]{display:none!important}
 @media (max-width:640px){h1{font-size:24px}.kpi .v{font-size:20px}}
 
+/* Tabs: Board / Hours vs budget */
+.tabs{display:flex;gap:0;border-bottom:2px solid var(--grid)}
+.tab{font:600 14px var(--sans);height:42px;padding:0 18px;border:1px solid var(--line);border-bottom:0;border-radius:6px 6px 0 0;background:var(--bg);color:var(--muted);cursor:pointer;margin-right:4px}
+.tab[aria-selected="true"]{background:var(--grid);border-color:var(--grid);color:var(--bg)}
+.tabpane{display:flex;flex-direction:column;gap:18px}
+/* Hours vs budget */
+.hv-lede{font-size:19px;line-height:1.4;margin:0;max-width:62ch}
+.hv-lede b{font-family:var(--mono)}
+.hv-hero{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center}
+.hv-ratio{font:700 56px/1 var(--mono);font-variant-numeric:tabular-nums}
+.hv-hero p{margin:0;color:var(--muted);max-width:60ch;font-size:13.5px}
+.hv-sec{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.hv-sec h2{margin:0;font-size:17px}
+.hv-sec .how{margin:0;color:var(--muted);font-size:13px;max-width:80ch}
+.heat{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.cell{border-radius:6px;padding:9px 10px;background:var(--hatch);border:1px solid var(--line);color:var(--muted)}
+.cell .t{font:600 15px var(--mono);color:var(--ink)}
+.cell .t span{font-weight:400;font-size:13px;color:var(--muted)}
+.cell .d{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell .n{font:600 12.5px var(--mono);margin-top:5px}
+.cell.good{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.cell.warn{background:var(--part-soft);border-color:var(--part);color:var(--warn-ink)}
+.cell.bad{background:var(--bad-soft);border-color:var(--bad);color:var(--bad)}
+.hv-chart{position:relative;height:300px}
+.hv-tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13px}
+.hv-tbl th{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:right;padding:6px 8px;border-bottom:2px solid var(--grid)}
+.hv-tbl td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);font-family:var(--mono)}
+.hv-tbl th:first-child,.hv-tbl td:first-child{text-align:left}
+.brow{display:grid;grid-template-columns:150px minmax(0,1fr) 150px;gap:12px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.brow:last-child{border-bottom:0}
+.brow .k b{font:600 14px var(--mono);margin-right:6px}.brow .k span{color:var(--muted);font-family:var(--mono)}
+.trk{position:relative;height:14px;background:var(--hatch);border-radius:3px}
+.ern{position:absolute;left:0;top:0;bottom:0;background:var(--done);border-radius:3px}
+.act{position:absolute;top:-5px;bottom:-5px;width:3px;margin-left:-1px;background:var(--ink)}
+.act.over{background:var(--bad)}
+.brow .v{text-align:right;font-family:var(--mono);color:var(--muted)}
+.tg-ok{color:var(--ok)}.tg-warn{color:var(--warn-ink)}.tg-bad{color:var(--bad)}
+.flags{margin:0;padding-left:20px;font-size:13.5px}.flags li{margin:3px 0}
+.sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line)}
+@media (max-width:640px){.brow{grid-template-columns:70px minmax(0,1fr) 96px}.brow .k span{display:none}.hv-ratio{font-size:42px}}
+
 body{margin:0}
 </style>
 </head>
@@ -158,6 +202,12 @@ body{margin:0}
     </div>
   </div>
 
+  <div class="tabs" role="tablist" aria-label="Board views">
+    <button class="tab" type="button" role="tab" id="tab-btn-board" aria-controls="tab-board" aria-selected="true" data-tab="board">Board</button>
+    <button class="tab" type="button" role="tab" id="tab-btn-hours" aria-controls="tab-hours" aria-selected="false" data-tab="hours">Hours vs budget</button>
+  </div>
+
+  <div class="tabpane" id="tab-board" role="tabpanel" aria-labelledby="tab-btn-board">
   <div id="banner" hidden></div>
 
   <div class="kpis" id="kpis"></div>
@@ -179,6 +229,53 @@ body{margin:0}
     <span><i class="sq" style="display:inline-block"></i>Not started</span>
     <span><i class="bay empty" style="display:inline-block;width:18px;height:14px;min-height:0;padding:0;border:0"></i>No drops on the print</span>
     <span>Drops are counted by letter line, so each row’s bays fill from line 6 eastward: green first, then yellow, then orange. Done = 40% conduit / pipe + 40% wire pulled + 20% terminated.</span>
+  </div>
+  </div>
+
+  <div class="tabpane" id="tab-hours" role="tabpanel" aria-labelledby="tab-btn-hours" hidden>
+    <p class="msg" id="hv-msg" role="status"></p>
+    <div id="hv-body" hidden>
+      <p class="hv-lede" id="hv-lede"></p>
+      <div class="hv-hero"><div class="hv-ratio" id="hv-ratio">–</div><p id="hv-note"></p></div>
+
+      <section class="hv-sec" aria-labelledby="hv-h1">
+        <h2 id="hv-h1">Every drop type at a glance</h2>
+        <p class="how">Color is earned hours ÷ hours spent. Green is on or under budget, yellow is up to 10% over, red is more than 10% over. Gray hasn’t had hours or progress yet.</p>
+        <div class="heat" id="hv-heat"></div>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--ok-soft);border-color:var(--ok)"></i>1.00 or better</span>
+          <span><i class="sw" style="background:var(--part-soft);border-color:var(--part)"></i>0.90 to 0.99</span>
+          <span><i class="sw" style="background:var(--bad-soft);border-color:var(--bad)"></i>below 0.90</span>
+          <span><i class="sw" style="background:var(--hatch)"></i>not started</span>
+        </div>
+      </section>
+
+      <section class="hv-sec" aria-labelledby="hv-h2">
+        <h2 id="hv-h2">Weekly burn</h2>
+        <p class="how" id="hv-burn-how"></p>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--done);border-color:var(--done)"></i>Earned</span>
+          <span><i class="sw" style="background:var(--ink);border-color:var(--ink)"></i>Spent (crew hours on the board)</span>
+          <span id="hv-plan-key" hidden><i class="sw" style="background:var(--muted);border-color:var(--muted)"></i>Planned</span>
+        </div>
+        <div class="hv-chart"><canvas id="hv-burn" role="img" aria-label="Cumulative earned, spent and planned hours by week"></canvas></div>
+        <div class="tw"><table class="hv-tbl" id="hv-clock"><thead><tr><th>Week of</th><th>Crew hours on the board</th><th>Time clock ELEC hours</th><th>Not logged on the board</th></tr></thead><tbody></tbody></table></div>
+        <p class="msg">Time clock hours are raw punch-in to punch-out for ELEC-class employees at Midway, before lunch deductions, starting the week the clock went live. Supervisors (ELSP, ELPM) aren’t included.</p>
+      </section>
+
+      <section class="hv-sec" aria-labelledby="hv-h3">
+        <h2 id="hv-h3">Where the budget is going</h2>
+        <p class="how">Bar length is each drop type’s budget. Blue is hours earned, the black tick is hours spent. A red tick means spent has passed earned by more than 10%.</p>
+        <div id="hv-bars"></div>
+      </section>
+
+      <section class="hv-sec" aria-labelledby="hv-h4">
+        <h2 id="hv-h4">Things to sort out</h2>
+        <ul class="flags" id="hv-flags"></ul>
+      </section>
+
+      <p class="msg" id="hv-method"></p>
+    </div>
   </div>
 </div>
 
@@ -351,6 +448,7 @@ document.getElementById('tally').addEventListener('click',e=>{const b=e.target.c
 // ---------- server ----------
 const CONFIG={
   url:'https://vbfspyruvaoqmhuutphl.supabase.co/functions/v1/midway-electric-api',
+  hoursUrl:'https://vbfspyruvaoqmhuutphl.supabase.co/functions/v1/electric-hours-api',
   key:'sb_publishable_X6AsZvhKdglY2PBYvyb-aw_1vnfYbe3' // publishable key: safe to be public
 };
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
@@ -383,8 +481,8 @@ function showGate(msg){gate.hidden=false;gateMsg.textContent=msg||'';gateMsg.hid
 function hideGate(){gate.hidden=true}
 document.getElementById('gate-form').addEventListener('submit',e=>{e.preventDefault();
   const n=document.getElementById('who').value.trim(),v=document.getElementById('code').value.trim();if(!n||!v)return;
-  NAME=n;CODE=v;store.set(NAME_KEY,n);store.set(CODE_KEY,v);gateMsg.hidden=true;load()});
-document.getElementById('signout').addEventListener('click',()=>{CODE='';store.del(CODE_KEY);S.sheet=null;S.rt=null;render();showGate()});
+  NAME=n;CODE=v;store.set(NAME_KEY,n);store.set(CODE_KEY,v);gateMsg.hidden=true;load();if(TAB==='hours')loadHours()});
+document.getElementById('signout').addEventListener('click',()=>{CODE='';store.del(CODE_KEY);S.sheet=null;S.rt=null;H=null;render();showGate()});
 document.getElementById('wd').addEventListener('change',e=>{const v=e.target.value;if(!v)return;S.date=v;S.open=null;S.msg='';S.conflict=null;load()});
 
 // ---------- quick steps: show the click at once, save in order behind the scenes ----------
@@ -427,7 +525,7 @@ async function load(){
 }
 setInterval(()=>{if(document.visibilityState==='visible'&&!S.busy&&!S.open&&!stepsPending)load()},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!S.open&&!stepsPending)load()});
-document.getElementById('refresh').addEventListener('click',()=>{S.msg='';load()});
+document.getElementById('refresh').addEventListener('click',()=>{S.msg='';load();if(TAB==='hours')loadHours()});
 document.getElementById('banner').addEventListener('click',async e=>{if(!e.target.closest('[data-act="resync"]')||S.busy)return;
   S.busy=true;render();try{const r=await api('resync');apply(r.data);S.msg=r.result.left?(r.result.left+' still not copied. Smartsheet may be down; try again later.'):'Everything is copied to Smartsheet.';S.msgBad=!!r.result.left}catch(err){S.msg='Copy failed: '+err.message;S.msgBad=true}S.busy=false;render()});
 
@@ -465,8 +563,135 @@ document.getElementById('side').addEventListener('click',e=>{const b=e.target.cl
   else if(a==='forcereplace'){const k=S.conflict;S.draft={crew:Array.from(new Set(k.crew.concat(S.draft.crew))),hrs:hoursInput(),mode:'replace'};S.conflict=null;S.msg='';render()}
 });
 
+// ---------- Hours vs budget tab ----------
+// Budget from el_budget (the SOW), progress and crew hours from this board, raw ELEC punches from the time clock.
+// Budget rows: Supabase → Table Editor → el_budget. Planned line: start/finish dates in el_plan.
+let TAB='board',H=null,hChart=null,chartLib=null,hLoading=false;
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const r2=n=>(Math.round(n*100)/100).toFixed(2);
+const tone=x=>x==null?'':x>=1?'good':x>=0.9?'warn':'bad';
+const toneTxt=x=>x==null?'':x>=1?'tg-ok':x>=0.9?'tg-warn':'tg-bad';
+const wkLabel=wk=>new Date(wk+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+
+function setTab(t){
+  TAB=t;
+  document.getElementById('tab-board').hidden=t!=='board';
+  document.getElementById('tab-hours').hidden=t!=='hours';
+  document.getElementById('tab-btn-board').setAttribute('aria-selected',String(t==='board'));
+  document.getElementById('tab-btn-hours').setAttribute('aria-selected',String(t==='hours'));
+  document.querySelector('.wdl').hidden=t==='hours';
+  try{history.replaceState(null,'',t==='hours'?'#hours':location.pathname+location.search)}catch(e){}
+  if(t==='hours'){if(H)renderHours();loadHours()}
+}
+document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b&&b.dataset.tab!==TAB)setTab(b.dataset.tab)});
+document.querySelector('.tabs').addEventListener('keydown',e=>{if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;const n=TAB==='board'?'hours':'board';setTab(n);document.getElementById('tab-btn-'+n).focus()});
+
+function loadChartLib(){
+  if(window.Chart)return Promise.resolve();
+  if(!chartLib)chartLib=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';s.onload=res;s.onerror=()=>{chartLib=null;rej(new Error('chart'))};document.head.appendChild(s)});
+  return chartLib;
+}
+async function loadHours(){
+  const msg=document.getElementById('hv-msg');
+  if(!CODE){showGate();return}
+  if(hLoading)return;hLoading=true;
+  if(!H)msg.textContent='Loading hours…';
+  try{
+    const res=await fetch(CONFIG.hoursUrl,{method:'POST',headers:{'Content-Type':'application/json',apikey:CONFIG.key},body:JSON.stringify({site:'midway',code:CODE})});
+    let body=null;try{body=await res.json()}catch(e){}
+    if(res.status===401){CODE='';store.del(CODE_KEY);showGate('That crew code isn’t right. Ask your site lead for it.');hLoading=false;return}
+    if(!res.ok)throw new Error((body&&body.message)||('The hours server returned '+res.status+'.'));
+    H=body;msg.textContent='';
+    try{await loadChartLib()}catch(e){msg.textContent='The chart couldn’t load. The numbers below are still current.'}
+    renderHours();
+  }catch(e){
+    msg.textContent=e instanceof TypeError?'Can’t reach the hours server. Check the connection and tap Refresh.':e.message;
+    msg.className='msg bad';
+  }
+  hLoading=false;
+}
+
+function renderHours(){
+  if(!H)return;
+  document.getElementById('hv-msg').className='msg';
+  document.getElementById('hv-body').hidden=false;
+  const W=H.weights;
+  const cells=Object.fromEntries(H.cells.map(c=>[c.drop_type,c]));
+  const mh=Object.fromEntries(H.mh.map(m=>[m.drop_type,m.mh||0]));
+  const rows=H.budget.map(b=>{
+    const c=cells[b.drop_type],scope=c?c.scope:0;
+    const pct=c&&scope?(W[0]*c.s1+W[1]*c.s2+W[2]*c.s3)/scope:0;
+    const spent=mh[b.drop_type]||0,earned=b.budget*pct;
+    return Object.assign({},b,{desc:DESC[b.drop_type]||b.description||'',scope,onBoard:!!c,pct,spent,earned,ratio:spent>0?earned/spent:null});
+  }).sort((a,b)=>b.budget-a.budget);
+  const byType=Object.fromEntries(rows.map(r=>[r.drop_type,r]));
+  const tB=rows.reduce((s,r)=>s+r.budget,0),tE=rows.reduce((s,r)=>s+r.earned,0),tS=H.mh.reduce((s,m)=>s+(m.mh||0),0);
+  const tR=tS>0?tE/tS:null,done=tB?tE/tB:0;
+
+  document.getElementById('hv-lede').innerHTML='Electrical has earned <b>'+fmt(tE)+'</b> of its <b>'+fmt(tB)+'</b> budgeted hours and spent <b>'+fmt(tS)+'</b> crew hours getting there.';
+  const ratioEl=document.getElementById('hv-ratio');ratioEl.textContent=tR==null?'–':r2(tR);ratioEl.className='hv-ratio '+toneTxt(tR);
+  document.getElementById('hv-note').innerHTML=tR==null?'No crew hours logged yet.':
+    'Earned ÷ spent. '+(tR>=1?'At or above 1.00, the work is coming in at or under budget.':'Below 1.00 means each hour spent is buying less than an hour of budgeted work.')+
+    (tE>0?' At this rate the full scope would take about <b>'+fmt(tS/done)+'</b> hours against '+fmt(tB)+' budgeted. The job is '+Math.round(done*100)+'% complete, so this forecast will move a lot early on.':'');
+
+  document.getElementById('hv-heat').innerHTML=rows.map(r=>{
+    const started=r.spent>0||r.pct>0,cls=!started?'':r.spent>0?tone(r.ratio):'good';
+    const rt=r.spent>0?' · '+r2(r.ratio):started?' · no hours':'';
+    return '<div class="cell '+cls+'" title="'+esc(r.desc)+'"><div class="t">'+esc(r.drop_type)+' <span>'+Math.round(r.pct*100)+'%</span></div><div class="d">'+esc(r.desc)+'</div><div class="n">'+fmt(r.spent)+' / '+fmt(r.budget)+' h'+rt+'</div></div>'}).join('');
+
+  const max=Math.max(...rows.map(r=>r.budget),1);
+  document.getElementById('hv-bars').innerHTML=rows.map(r=>{
+    const over=r.spent>0&&r.ratio<0.9;
+    const tick=r.spent>0?'<div class="act'+(over?' over':'')+'" style="left:'+Math.min(r.spent/r.budget*100,100)+'%"></div>':'';
+    const rt=r.spent>0?'<b class="'+toneTxt(r.ratio)+'">'+r2(r.ratio)+'</b>':'–';
+    return '<div class="brow"><div class="k"><b>'+esc(r.drop_type)+'</b><span>'+fmt(r.budget)+' h</span></div><div style="width:'+(r.budget/max*100)+'%;min-width:24px"><div class="trk"><div class="ern" style="width:'+(r.pct*100)+'%"></div>'+tick+'</div></div><div class="v">'+fmt(r.earned)+' / '+fmt(r.spent)+' h · '+rt+'</div></div>'}).join('');
+
+  // weekly cumulative earned and spent
+  const weeks=[...new Set([...H.weekly.map(w=>w.wk),...H.clock.map(c=>c.wk)])].sort();
+  let cE=0,cS=0;const E=[],Sp=[],boardWk={};
+  weeks.forEach(wk=>{H.weekly.filter(x=>x.wk===wk).forEach(w=>{const b=byType[w.drop_type];cS+=w.mh||0;boardWk[wk]=(boardWk[wk]||0)+(w.mh||0);
+    if(b&&b.scope)cE+=(b.budget/b.scope)*(W[0]*w.d1+W[1]*w.d2+W[2]*w.d3)});E.push(Math.round(cE));Sp.push(Math.round(cS))});
+  let P=null;
+  if(H.plan&&H.plan.plan_start&&H.plan.plan_finish){const a=Date.parse(H.plan.plan_start),z=Date.parse(H.plan.plan_finish);
+    P=weeks.map(wk=>{const t=Date.parse(wk)+7*864e5;return Math.round(tB*Math.min(Math.max((t-a)/(z-a),0),1))})}
+  document.getElementById('hv-plan-key').hidden=!P;
+  document.getElementById('hv-burn-how').textContent='Cumulative hours by week. When earned falls below spent, the job is using more hours than the finished work is worth.'+(P?'':' To add a planned line, enter start and finish dates in Supabase → Table Editor → el_plan.');
+  drawBurn(weeks,E,Sp,P);
+
+  const clock=Object.fromEntries(H.clock.map(c=>[c.wk,c.hrs]));
+  document.querySelector('#hv-clock tbody').innerHTML=weeks.slice().reverse().map(wk=>{const b=boardWk[wk]||0,c=clock[wk];const gap=c==null?null:c-b;
+    return '<tr><td>'+wkLabel(wk)+'</td><td>'+fmt(b)+'</td><td>'+(c==null?'–':fmt(c))+'</td><td class="'+(gap!=null&&gap>c*0.1?'tg-bad':'')+'">'+(gap==null?'–':fmt(gap))+'</td></tr>'}).join('');
+
+  const flags=[];
+  rows.forEach(r=>{
+    if(r.onBoard&&r.sow_qty!=null&&r.sow_qty!==r.scope)flags.push(esc(r.drop_type)+': the SOW has '+r.sow_qty+' drops, the board has '+r.scope+'. Percent complete uses the board’s count.');
+    if(!r.onBoard)flags.push(esc(r.drop_type)+' ('+fmt(r.budget)+' h) isn’t a drop type on the board, so it can’t earn hours yet.');
+  });
+  H.cells.forEach(c=>{if(!byType[c.drop_type])flags.push(esc(c.drop_type)+' is on the board but has no budget row.')});
+  const clockTot=H.clock.reduce((s,c)=>s+(c.hrs||0),0),boardSince=weeks.filter(wk=>clock[wk]!=null).reduce((s,wk)=>s+(boardWk[wk]||0),0);
+  if(clockTot-boardSince>40)flags.push('Since the time clock went live, ELEC punches total '+fmt(clockTot)+' hours but the board has '+fmt(boardSince)+'. The difference isn’t in the earned-vs-spent numbers above.');
+  document.getElementById('hv-flags').innerHTML=flags.length?flags.map(f=>'<li>'+f+'</li>').join(''):'<li>Nothing to sort out.</li>';
+
+  document.getElementById('hv-method').textContent='Earned = budget hours × percent complete, where each drop counts '+W[0]*100+'% at conduit / pipe, '+(W[0]+W[1])*100+'% at wire pulled and 100% at terminated. Spent = crew members × hours each, as logged on the board. Budget rows live in Supabase → Table Editor → el_budget. Updated '+new Date(H.fetchedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.';
+}
+
+function drawBurn(labels,E,Sp,P){
+  if(!window.Chart)return;
+  const cs=getComputedStyle(document.documentElement),col=v=>cs.getPropertyValue(v).trim();
+  const ds=[
+    {label:'Earned',data:E,borderColor:col('--done'),backgroundColor:col('--done'),borderWidth:2.5,pointRadius:3,tension:.15},
+    {label:'Spent',data:Sp,borderColor:col('--ink'),backgroundColor:col('--ink'),borderWidth:2.5,pointRadius:3,borderDash:[6,4],tension:.15}];
+  if(P)ds.push({label:'Planned',data:P,borderColor:col('--muted'),borderWidth:2,pointRadius:0,borderDash:[2,4]});
+  if(hChart)hChart.destroy();
+  hChart=new Chart(document.getElementById('hv-burn'),{type:'line',data:{labels:labels.map(wkLabel),datasets:ds},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw)+' h'}}},
+      scales:{x:{grid:{display:false},ticks:{color:col('--muted')}},y:{beginAtZero:true,grid:{color:col('--line')},ticks:{color:col('--muted'),callback:v=>fmt(v)}}}}});
+}
+
 render();
 load();
+if(location.hash==='#hours')setTab('hours');
 })();
 </script>
 </body>
