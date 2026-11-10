@@ -223,12 +223,12 @@ body{margin:0}
   </section>
 
   <div class="legend">
-    <span><i class="sq st1" style="display:inline-block"></i>Conduit / pipe · 40%</span>
-    <span><i class="sq st2" style="display:inline-block"></i>Wire pulled · 80%</span>
+    <span><i class="sq st1" style="display:inline-block"></i>Conduit / pipe · 50%</span>
+    <span><i class="sq st2" style="display:inline-block"></i>Wire pulled · 75%</span>
     <span><i class="sq st3" style="display:inline-block"></i>Terminated · 100%</span>
     <span><i class="sq" style="display:inline-block"></i>Not started</span>
     <span><i class="bay empty" style="display:inline-block;width:18px;height:14px;min-height:0;padding:0;border:0"></i>No drops on the print</span>
-    <span>Drops are counted by letter line, so each row’s bays fill from line 6 eastward: green first, then yellow, then orange. Done = 40% conduit / pipe + 40% wire pulled + 20% terminated.</span>
+    <span>Drops are counted by letter line, so each row’s bays fill from line 6 eastward: green first, then yellow, then orange. Done = 50% conduit / pipe + 25% wire pulled + 25% terminated.</span>
   </div>
   </div>
 
@@ -354,7 +354,7 @@ function bayFill(){
   ROWS.forEach(r=>{const l=rowLetter(r);const pos={};
     COLS.forEach(c=>{const b=BAYS[r+'|'+c];if(!b)return;const f={};
       Object.keys(b).forEach(t=>{const x=S.sheet&&S.sheet[t]?S.sheet[t].L[l]:null,s=x&&x.s?x.s:[0,0,0];const st=[];let cr=0;
-        for(let i=0;i<b[t];i++){const k=(pos[t]||0)+i;const v=k<s[2]?3:k<s[1]?2:k<s[0]?1:0;st.push(v);cr+=v===3?1:v===2?0.8:v===1?0.4:0}
+        for(let i=0;i<b[t];i++){const k=(pos[t]||0)+i;const v=k<s[2]?3:k<s[1]?2:k<s[0]?1:0;st.push(v);cr+=v===3?1:v===2?0.75:v===1?0.5:0}
         pos[t]=(pos[t]||0)+b[t];f[t]={st,cr:r1(cr)}});fill[r+'|'+c]=f;});});
   return fill;
 }
@@ -416,7 +416,7 @@ function renderSide(){
     else h+='<div><button class="btn" type="button" data-act="open" data-t="'+t+'"'+(S.busy?' disabled':'')+'>Log crew &amp; hours for '+dayWord()+'</button></div>';
     h+='</div>';});
   if(S.msg)h+='<div class="msg'+(S.msgBad?' bad':'')+'" role="status">'+esc(S.msg)+'</div>';
-  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Palestine Electrical Manhours Log</b> in Smartsheet (one row per day, line and drop type), and + / − copy the Done credit (40% conduit / pipe, 40% wire pulled, 20% terminated) to Palestine Breakpack Electric. Pick an earlier work date at the top to log a day you missed.</div></details>';
+  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Palestine Electrical Manhours Log</b> in Smartsheet (one row per day, line and drop type), and + / − copy the Done credit (50% conduit / pipe, 25% wire pulled, 25% terminated) to Palestine Breakpack Electric. Pick an earlier work date at the top to log a day you missed.</div></details>';
   h+='</div>';el.innerHTML=h;
 }
 function renderStatus(){
@@ -487,7 +487,7 @@ document.getElementById('wd').addEventListener('change',e=>{const v=e.target.val
 
 // ---------- quick steps: show the click at once, save in order behind the scenes ----------
 let stepQueue=Promise.resolve(),stepsPending=0;
-const credit=s=>r1(0.4*s[0]+0.4*s[1]+0.2*s[2]);
+const credit=s=>Math.round((0.5*s[0]+0.25*s[1]+0.25*s[2])*100)/100;
 function stepClick(t,l,k,delta){
   const c=S.sheet&&S.sheet[t]&&S.sheet[t].L[l];if(!c)return;
   const s=(c.s||[0,0,0]).slice(),i=k-1,max=i?s[i-1]:c.scope,min=i<2?s[i+1]:0,v=s[i]+delta;
