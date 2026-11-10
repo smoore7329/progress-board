@@ -178,11 +178,11 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
   </div>
 
   <div class="legend">
-    <span><i class="sq st1"></i> Conduit / pipe · 40%</span>
-    <span><i class="sq st2"></i> Wire pulled · 80%</span>
+    <span><i class="sq st1"></i> Conduit / pipe · 50%</span>
+    <span><i class="sq st2"></i> Wire pulled · 75%</span>
     <span><i class="sq st3"></i> Terminated · 100%</span>
     <span><i class="sq"></i> Not started</span>
-    <span>Done = 40% conduit / pipe + 40% wire pulled + 20% terminated</span>
+    <span>Done = 50% conduit / pipe + 25% wire pulled + 25% terminated</span>
   </div>
 
   <section class="tally" aria-labelledby="tally-h">
@@ -307,7 +307,7 @@ function renderSide(){
     } else h+='<div><button class="btn" type="button" data-act="open" data-t="'+k+'"'+(S.busy?' disabled':'')+'>Log crew &amp; hours for '+esc(dayWord())+'</button></div>';
     h+='</div>';});
   if(S.msg)h+='<div class="msg'+(S.msgBad?' bad':'')+'" role="status">'+esc(S.msg)+'</div>';
-  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Buckeye Electrical Manhours Log</b> in Smartsheet (one row per day, cell and drop type), and + / − copies the Done credit (40% conduit / pipe, 40% wire pulled, 20% terminated) to <b>Master Power drops</b> a few seconds later. Hours are not copied to Master Power drops.</div></details>';
+  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Buckeye Electrical Manhours Log</b> in Smartsheet (one row per day, cell and drop type), and + / − copies the Done credit (50% conduit / pipe, 25% wire pulled, 25% terminated) to <b>Master Power drops</b> a few seconds later. Hours are not copied to Master Power drops.</div></details>';
   h+='</div>';el.innerHTML=h;
   const sb=el.querySelector('.sb');if(sb&&keep)sb.scrollTop=keep;
 }
@@ -360,12 +360,12 @@ document.getElementById('wd').addEventListener('change',e=>{const v=e.target.val
 
 // ---------- quick steps: show the click at once, save in order behind the scenes ----------
 let stepQueue=Promise.resolve(),stepsPending=0;
-const credit=s=>r1(0.4*s[0]+0.4*s[1]+0.2*s[2]);
+const credit=s=>Math.round((0.5*s[0]+0.25*s[1]+0.25*s[2])*100)/100;
 function stepClick(t,l,k,delta){
   const c=types(l)[t];if(!c)return;
   const s=(c.s||[0,0,0]).slice(),i=k-1,max=i?s[i-1]:c.scope,min=i<2?s[i+1]:0,v=s[i]+delta;
   if(v>max||v<min)return;
-  const before=c.done;s[i]=v;c.s=s;c.done=credit(s);c.d=(c.d||[0,0,0]).slice();c.d[i]+=delta;c.dropsToday=r1(c.dropsToday+c.done-before);
+  const before=c.done;s[i]=v;c.s=s;c.done=credit(s);c.d=(c.d||[0,0,0]).slice();c.d[i]+=delta;c.dropsToday=Math.round((c.dropsToday+c.done-before)*100)/100;
   stepsPending++;S.msg='Saving…';S.msgBad=false;render();
   const payload={type:t,loc:l,step:k,delta},nm=locName(l);
   stepQueue=stepQueue.then(async()=>{
