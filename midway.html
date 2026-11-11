@@ -105,6 +105,19 @@ h1{margin:0;font-size:30px;font-weight:700;text-wrap:balance}
 .crew{display:flex;flex-wrap:wrap;gap:5px}
 .cr{height:34px;padding:0 10px;border-radius:17px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:500 12.5px var(--sans);cursor:pointer}
 .cr.on{background:var(--chip-on);color:var(--chip-on-ink);border-color:var(--done)}
+/* crew groups: several crews with their own hours on one drop and day */
+.groups{display:flex;flex-direction:column;gap:6px}
+.grp{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border:1px solid var(--line);border-left:4px solid var(--gc);border-radius:6px;padding:7px 8px 7px 10px}
+.grp .who{flex:1 1 150px;min-width:0;font-size:13px}
+.grp .who b{display:block;white-space:nowrap;font:600 12.5px var(--mono);font-variant-numeric:tabular-nums}
+.grp.editing{background:color-mix(in srgb,var(--gc) 10%,var(--panel))}
+.gtot{display:flex;justify-content:space-between;font:600 12.5px var(--mono);border-top:2px solid var(--grid);padding-top:6px}
+.gstep{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600}
+.gsw{width:12px;height:12px;border-radius:3px;background:var(--gc);flex:none}
+.cr.pick{border:2px solid var(--gc);background:color-mix(in srgb,var(--gc) 16%,var(--panel));color:var(--ink)}
+.cr.used{border:2px solid var(--gc);background:color-mix(in srgb,var(--gc) 16%,var(--panel));color:var(--muted);cursor:default;opacity:1}
+.cr.used:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--gc);margin-right:6px;vertical-align:1px}
+.btn.sm{height:30px;padding:0 10px;font-size:12px}
 .hrs{display:flex;align-items:center;gap:8px}
 .hrs label{flex:1;font-size:13px}
 .hrs input{width:76px;height:38px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:600 15px var(--mono);text-align:center}
@@ -406,17 +419,11 @@ function renderSide(){
     steps+='</div>';
     const moved=STEPS.map((nm,k)=>dd[k]?(dd[k]>0?'+':'')+dd[k]+' '+nm.toLowerCase():'').filter(Boolean).join(', ');
     h+='<div class="trow"><div class="r1"><span class="code">'+t+'</span><span class="desc">'+esc(DESC[t])+'</span><span class="done">'+r1(c.done)+'/'+c.scope+'</span></div>'+steps+
-      '<div class="today">'+r1(arch+c.mh)+' MH to date · '+dayWord()+': '+(c.crew.length?esc(c.crew.join(', '))+' × '+c.hrs+' h = '+r1(c.mh)+' MH':'no hours logged')+(moved?' · '+esc(moved):'')+(c.by?' · by '+esc(c.by):'')+'</div>';
-    if(open){const d=S.draft,cur=c.crew;
-      h+='<div class="today">'+(d.mode==='replace'?'Editing '+dayWord()+'’s entry. Tap anyone who wasn’t on it to take them off.':(cur.length?'Adding people to '+dayWord()+'’s entry ('+esc(cur.join(', '))+' at '+c.hrs+' h each).':'Who worked '+t+' on line '+l+' '+dayWord()+'?'))+'</div>'+
-        '<div class="crew" role="group" aria-label="Crew on '+t+'">'+S.crewNames.map(n=>{const already=d.mode==='add'&&cur.includes(n);const on=already||d.crew.includes(n);return '<button type="button" class="cr'+(on?' on':'')+'" data-act="crew" data-n="'+esc(n)+'" aria-pressed="'+on+'"'+(already?' disabled':'')+'>'+esc(n)+'</button>'}).join('')+'</div>'+
-        '<div class="hrs"><label for="hrs-'+t+'">Hours each</label><input id="hrs-'+t+'" type="number" inputmode="decimal" min="0" max="24" step="0.5" value="'+d.hrs+'"></div>';
-      if(S.conflict&&S.conflict.t===t)h+='<div class="note">An entry holds one “hours each”. Save the new people at '+S.conflict.hrs+' h too, or change the entry.</div><div class="acts"><button class="btn primary" type="button" data-act="usehrs">Save at '+S.conflict.hrs+' h each</button><button class="btn" type="button" data-act="forcereplace">Change the entry</button></div>';
-      else h+='<div class="acts"><button class="btn primary" type="button" data-act="save"'+(S.busy?' disabled':'')+'>'+(d.mode==='replace'?'Save entry':'Add to '+dayWord())+'</button><button class="btn" type="button" data-act="cancel">Cancel</button>'+(d.mode==='add'&&cur.length?'<button class="btn" type="button" data-act="replace">Change the entry</button>':'')+'</div>';}
-    else h+='<div><button class="btn" type="button" data-act="open" data-t="'+t+'"'+(S.busy?' disabled':'')+'>Log crew &amp; hours for '+dayWord()+'</button></div>';
+      '<div class="today">'+r1(arch+c.mh)+' MH to date · '+dayWord()+': '+(c.mh?r1(c.mh)+' MH':'no hours logged')+(moved?' · '+esc(moved):'')+(c.by?' · by '+esc(c.by):'')+'</div>';
+    h+=crewBlock(c,t,'line '+l,S.crewNames);
     h+='</div>';});
   if(S.msg)h+='<div class="msg'+(S.msgBad?' bad':'')+'" role="status">'+esc(S.msg)+'</div>';
-  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Midway Electrical Manhours Log</b> in Smartsheet (one row per day, line and drop type), and + / − copy the Done credit (50% conduit / pipe, 25% wire pulled, 25% terminated) to Midway Breakpack Electric. Pick an earlier work date at the top to log a day you missed.</div></details>';
+  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Midway Electrical Manhours Log</b> in Smartsheet (one row per day, line, drop type and crew group), and + / − copy the Done credit (50% conduit / pipe, 25% wire pulled, 25% terminated) to Midway Breakpack Electric. Pick an earlier work date at the top to log a day you missed.</div></details>';
   h+='</div>';el.innerHTML=h;
 }
 function renderStatus(){
@@ -529,20 +536,72 @@ document.getElementById('refresh').addEventListener('click',()=>{S.msg='';load()
 document.getElementById('banner').addEventListener('click',async e=>{if(!e.target.closest('[data-act="resync"]')||S.busy)return;
   S.busy=true;render();try{const r=await api('resync');apply(r.data);S.msg=r.result.left?(r.result.left+' still not copied. Smartsheet may be down; try again later.'):'Everything is copied to Smartsheet.';S.msgBad=!!r.result.left}catch(err){S.msg='Copy failed: '+err.message;S.msgBad=true}S.busy=false;render()});
 
-async function write(action,payload,okText){
+async function write(action,payload,okText,keep){
   S.busy=true;S.msg='Saving…';S.msgBad=false;S.conflict=null;render();
   try{
-    const r=await api(action,payload);apply(r.data);S.open=null;
+    const r=await api(action,payload);apply(r.data);if(keep)S.draft={crew:[],hrs:payload.hrs||S.draft.hrs,edit:null};else S.open=null;
     S.msg=okText(r.result)+(r.warning?' Saved on the board, but the copy to Smartsheet didn’t go through yet; it retries on the next save.':'');
   }catch(e){
     S.msgBad=true;
-    if(e.code==='hours_mismatch'){S.conflict={t:payload.type,hrs:e.body.hrs,crew:e.body.crew||[]};S.msg=e.message}
+    if(e.code==='group_gone'){S.draft={crew:[],hrs:S.draft.hrs,edit:null};const m=e.message;await load();S.msg=m}
+    else if(e.code==='hours_mismatch'){S.conflict={t:payload.type,hrs:e.body.hrs,crew:e.body.crew||[]};S.msg=e.message}
     else if(e.code==='wrong_code'){CODE='';store.del(CODE_KEY);showGate('The crew code changed. Enter the new one.');S.msg='Not saved.'}
     else if(e instanceof TypeError)S.msg='Lost connection while saving. Tap Refresh to see whether it went through before trying again.';
     else S.msg='Not saved: '+e.message;
   }
   S.busy=false;render();
 }
+
+// ---------- crew groups ----------
+// A drop can have several crew groups on one day, each with its own hours each. Saved one group at a time.
+const GCOL=['#2F7FC8','#8A5CCF','#13939B','#C2508C','#6D7784','#A27A12'];
+const gcol=i=>GCOL[i%GCOL.length];
+function crewBlock(c,t,where,names){
+  const groups=c.groups||[],d=S.draft||{},open=S.open===t,ed=open&&d.edit!=null?d.edit:null,dis=S.busy?' disabled':'';
+  let h='';
+  if(groups.length){
+    h+='<div class="groups">'+groups.map((g,i)=>'<div class="grp'+(ed===g.g?' editing':'')+'" style="--gc:'+gcol(i)+'"><span class="who"><b>'+g.crew.length+' × '+g.hrs+' h = '+r1(g.mh)+' MH</b>'+esc(g.crew.join(', '))+'</span>'+
+      (open&&ed==null?'<button class="btn sm" type="button" data-act="gedit" data-g="'+g.g+'"'+dis+'>Change</button><button class="btn sm" type="button" data-act="gdel" data-g="'+g.g+'" aria-label="Remove crew group '+(i+1)+'"'+dis+'>Remove</button>':'')+'</div>').join('')+'</div>';
+    if(groups.length>1)h+='<div class="gtot"><span>'+esc(t)+' '+esc(dayWord())+'</span><span>'+r1(c.mh)+' MH</span></div>';
+  }
+  if(!open)return h+'<div><button class="btn" type="button" data-act="open" data-t="'+t+'"'+dis+'>'+(groups.length?'Add or change crew':'Log crew &amp; hours')+' for '+esc(dayWord())+'</button></div>';
+  const idx=ed!=null?groups.findIndex(g=>g.g===ed):groups.length,col=gcol(idx<0?groups.length:idx);
+  const owner={};groups.forEach((g,i)=>{if(g.g!==ed)g.crew.forEach(n=>{owner[n]=i})});
+  h+='<div class="gstep" style="--gc:'+col+'"><i class="gsw"></i>'+(ed!=null?'Changing group '+(idx+1)+'. Tap names to add or take off.':(groups.length?'Next group: pick names and hours, then add it.':'Who worked '+esc(t)+' on '+esc(where)+' '+esc(dayWord())+'? Pick names and hours, then add the group.'))+'</div>';
+  h+='<div class="crew" role="group" aria-label="Crew on '+esc(t)+'">'+names.map(n=>{
+    if(n in owner)return '<button type="button" class="cr used" style="--gc:'+gcol(owner[n])+'" disabled title="In group '+(owner[n]+1)+'. Change that group to move them.">'+esc(n)+'</button>';
+    const on=(d.crew||[]).includes(n);
+    return '<button type="button" class="cr'+(on?' pick':'')+'" style="--gc:'+col+'" data-act="crew" data-n="'+esc(n)+'" aria-pressed="'+on+'">'+esc(n)+'</button>'}).join('')+'</div>';
+  h+='<div class="hrs"><label for="hrs-'+t+'">Hours each</label><input id="hrs-'+t+'" type="number" inputmode="decimal" min="0" max="24" step="0.5" value="'+d.hrs+'"></div>';
+  const k=(d.crew||[]).length;
+  if(ed!=null)h+='<div class="acts"><button class="btn primary" type="button" data-act="gsave"'+dis+'>'+(k?'Save group':'Remove group')+'</button><button class="btn" type="button" data-act="gcancel"'+dis+'>Cancel</button></div>';
+  else h+='<div class="acts"><button class="btn primary" type="button" data-act="gadd" id="gadd-'+t+'"'+(k&&!S.busy?'':' disabled')+'>'+addLabel(k,d.hrs)+'</button><button class="btn" type="button" data-act="cancel">Done</button></div>';
+  return h;
+}
+function addLabel(k,hrs){return k?'Add '+k+(k===1?' person':' people')+' at '+(hrs>0?hrs:'?')+' h':'Pick names to add a group'}
+function groupText(r,t,where){
+  return r.removed?('Removed a crew group from '+t+' on '+where+' for '+dayWord()+'.'):('Saved '+t+' on '+where+' for '+dayWord()+': '+r.crew.length+' × '+r.hrs+' h = '+r1(r.mh)+' MH.')}
+// a = action, b = button, t = drop type, c = that drop's numbers, base = {type, letter|loc}, where = "line L" / "LC233"
+function crewAct(a,b,t,c,base,where){
+  const hrsNow=()=>{const i=document.getElementById('hrs-'+t);return i?num(i.value):S.draft.hrs};
+  const okHrs=h=>{if(h>0&&h<=24)return true;S.msg='Enter the hours each person worked (more than 0, up to 24).';S.msgBad=true;render();return false};
+  if(a==='open'){const g=(c.groups||[]);S.open=t;S.msg='';S.draft={crew:[],hrs:g.length?g[g.length-1].hrs:10,edit:null};render();return true}
+  if(a==='cancel'){S.open=null;S.msg='';render();return true}
+  if(a==='crew'){S.draft.hrs=hrsNow();const n=b.dataset.n,i=S.draft.crew.indexOf(n);i<0?S.draft.crew.push(n):S.draft.crew.splice(i,1);render();return true}
+  if(a==='gadd'){const h=hrsNow();S.draft.hrs=h;if(!S.draft.crew.length)return true;if(!okHrs(h))return true;
+    write('crew',Object.assign({},base,{crew:S.draft.crew.slice(),hrs:h,group:'new'}),r=>groupText(r,t,where),true);return true}
+  if(a==='gedit'){const g=(c.groups||[]).find(x=>x.g===+b.dataset.g);if(!g)return true;S.msg='';S.draft={crew:g.crew.slice(),hrs:g.hrs,edit:g.g};render();return true}
+  if(a==='gcancel'){S.draft={crew:[],hrs:S.draft.hrs,edit:null};S.msg='';render();return true}
+  if(a==='gsave'){const h=hrsNow(),crew=S.draft.crew.slice();if(crew.length&&!okHrs(h))return true;
+    write('crew',Object.assign({},base,{crew,hrs:crew.length?h:0,group:S.draft.edit}),r=>groupText(r,t,where),true);return true}
+  if(a==='gdel'){const g=(c.groups||[]).find(x=>x.g===+b.dataset.g);if(!g)return true;
+    if(!confirm('Remove '+g.crew.join(', ')+' ('+g.hrs+' h each) from '+t+' on '+where+'?'))return true;
+    write('crew',Object.assign({},base,{crew:[],hrs:0,group:g.g}),r=>groupText(r,t,where),true);return true}
+  return false;
+}
+// keep the Add button's label in step with the hours box
+document.getElementById('side').addEventListener('input',e=>{const i=e.target;if(!i.id||i.id.indexOf('hrs-')!==0||!S.draft)return;
+  S.draft.hrs=num(i.value);const b=document.getElementById('gadd-'+i.id.slice(4));if(b)b.textContent=addLabel((S.draft.crew||[]).length,S.draft.hrs)});
 
 // ---------- events ----------
 document.getElementById('grid').addEventListener('click',e=>{const b=e.target.closest('[data-letter]');if(!b)return;S.sel=b.dataset.letter;S.open=null;S.msg='';S.conflict=null;render();
@@ -551,16 +610,7 @@ function hoursInput(){const i=document.getElementById('hrs-'+S.open);return i?nu
 document.getElementById('side').addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||!S.sheet||S.busy)return;const a=b.dataset.act,t=b.dataset.t||S.open,l=S.sel;
   const c=t&&S.sheet[t]?S.sheet[t].L[l]:null;
   if(a==='inc'||a==='dec'){stepClick(t,l,+b.dataset.k,a==='inc'?1:-1)}
-  else if(a==='open'){S.open=t;S.conflict=null;S.msg='';S.draft={crew:[],hrs:c.hrs||10,mode:'add'};render()}
-  else if(a==='replace'){S.draft={crew:c.crew.slice(),hrs:hoursInput(),mode:'replace'};S.conflict=null;render()}
-  else if(a==='cancel'){S.open=null;S.conflict=null;S.msg='';render()}
-  else if(a==='crew'){S.draft.hrs=hoursInput();const n=b.dataset.n;const i=S.draft.crew.indexOf(n);i<0?S.draft.crew.push(n):S.draft.crew.splice(i,1);render()}
-  else if(a==='save'||a==='usehrs'){
-    const hrs=a==='usehrs'?S.conflict.hrs:hoursInput();const d=S.draft;
-    if(d.mode==='add'&&!d.crew.length){S.msg='Pick at least one person to add.';S.msgBad=true;render();return}
-    if(!(hrs>0)&&d.crew.length){S.msg='Enter the hours each person worked.';S.msgBad=true;render();return}
-    write('crew',{type:t,letter:l,crew:d.crew,hrs,mode:d.mode},r=>r.crew.length?('Saved '+t+' on line '+l+' for '+dayWord()+': '+r.crew.length+' × '+r.hrs+' h = '+r1(r.mh)+' MH.'):('Cleared '+dayWord()+'’s hours for '+t+' on line '+l+'.'))}
-  else if(a==='forcereplace'){const k=S.conflict;S.draft={crew:Array.from(new Set(k.crew.concat(S.draft.crew))),hrs:hoursInput(),mode:'replace'};S.conflict=null;S.msg='';render()}
+  else if(crewAct(a,b,t,c,{type:t,letter:l},'line '+l)){}
 });
 
 // ---------- Hours vs budget tab ----------
