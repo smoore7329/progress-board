@@ -236,12 +236,12 @@ body{margin:0}
   </section>
 
   <div class="legend">
-    <span><i class="sq st1" style="display:inline-block"></i>Conduit / pipe · 50%</span>
-    <span><i class="sq st2" style="display:inline-block"></i>Wire pulled · 75%</span>
+    <span><i class="sq st1" style="display:inline-block"></i>Conduit / pipe · 65%</span>
+    <span><i class="sq st2" style="display:inline-block"></i>Wire pulled · 95%</span>
     <span><i class="sq st3" style="display:inline-block"></i>Terminated · 100%</span>
     <span><i class="sq" style="display:inline-block"></i>Not started</span>
     <span><i class="bay empty" style="display:inline-block;width:18px;height:14px;min-height:0;padding:0;border:0"></i>No drops on the print</span>
-    <span>Drops are counted by letter line, so each row’s bays fill from line 6 eastward: green first, then yellow, then orange. Done = 50% conduit / pipe + 25% wire pulled + 25% terminated.</span>
+    <span>Drops are counted by letter line, so each row’s bays fill from line 6 eastward: green first, then yellow, then orange. Done = 65% conduit / pipe + 30% wire pulled + 5% terminated.</span>
   </div>
   </div>
 
@@ -314,7 +314,7 @@ const BLOCK={N:3,P:6,Q:9,J:12,K:15,L:18,M:21,E:24,F:27,G:30,H:33};
 const HRS_TITLE=l=>l==='N'?'# of Hours N':'# of hours '+l;
 const DESC={A2:'Product 5 mastless lift drive/ctrl',B1:'Product lift ctrl (UPS)',BP08:'Break pack trash baler',BP25:'BP floor conveyor network power cab.',BP26:'BP empty tote lift + NPC',BP27:'BP empty tote return lift + NPC',BP28:'Auto battery swapper power cab.',BP30:'Minibot dumb waiter lift',BP31:'Battery charge power',BP32:'Battery swapper (UPS)',D:'Bot charging system',H:'Maint. areas, laptops, accessories',K1:'Safety aisle access (UPS)',L1:'Safety driveway gate (UPS)',M:'Network IDF switch (UPS)',N:'Network IDF air cond',P:'Adapter cell network/PLC (UPS)',QQ:'Control room (UPS)',QQ1:'Control room',XX:'Aisle/driveway lighting'};
 const TYPES=Object.keys(DESC);
-const STEPS=['Conduit / pipe','Wire pulled','Terminated'],STEP_PCT=[50,25,25];
+const STEPS=['Conduit / pipe','Wire pulled','Terminated'],STEP_PCT=[65,30,5];
 const CREW_FALLBACK=['William Lopez Reyes','Alejandro Trevino','Eric Bonilla','Andres Rodriguez','Christopher Torres','Yenifer Padilla'];
 // Drops the print shows in each bay (row = between letter lines, col = between number lines)
 const BAYS={"F–E|10–11":{"L1":2},"F–E|7–8":{"L1":1},"F–E|8–9":{"L1":2},"F–E|9–10":{"L1":2,"K1":1},"G–F|8–9":{"BP28":2,"BP32":2,"M":2,"H":1,"N":1},"G–F|9–10":{"BP28":9,"BP32":2},"H–G|8–9":{"BP28":2,"BP32":1},"H–G|9–10":{"BP28":4,"BP32":1},"J–H|8–9":{"BP28":6,"BP32":2},"J–H|9–10":{"BP28":7,"BP32":2},"K–J|8–9":{"BP28":3,"BP32":1},"K–J|9–10":{"M":2,"N":1},"L–K|8–9":{"BP28":6,"BP32":1,"H":1,"XX":1},"L–K|9–10":{"BP28":9,"BP32":3,"H":2,"XX":2,"K1":1},"M–L|8–9":{"BP28":5,"A2":2,"B1":2,"BP32":2,"D":2,"H":1,"K1":1},"M–L|9–10":{"BP28":3,"D":2,"BP32":1},"N–M|10–11":{"H":1,"XX":1},"N–M|6–7":{"BP31":10},"N–M|7–8":{"H":2,"XX":2},"N–M|8–9":{"M":2,"BP26":1,"D":1,"K1":1,"N":1},"N–M|9–10":{"BP26":1,"D":1},"P–N|10–11":{"BP25":3,"P":3,"BP08":1},"P–N|6–7":{"BP31":10,"QQ1":4,"H":3,"QQ":2},"P–N|7–8":{"P":4,"BP25":3,"BP08":1,"BP27":1,"H":1},"P–N|8–9":{"H":1},"P–N|9–10":{"H":1,"P":1},"Q–P|10–11":{"H":7,"XX":1},"Q–P|6–7":{"H":5},"Q–P|8–9":{"BP31":15,"H":11},"Q–P|9–10":{"BP31":15,"H":12,"P":1}};
@@ -367,7 +367,7 @@ function bayFill(){
   ROWS.forEach(r=>{const l=rowLetter(r);const pos={};
     COLS.forEach(c=>{const b=BAYS[r+'|'+c];if(!b)return;const f={};
       Object.keys(b).forEach(t=>{const x=S.sheet&&S.sheet[t]?S.sheet[t].L[l]:null,s=x&&x.s?x.s:[0,0,0];const st=[];let cr=0;
-        for(let i=0;i<b[t];i++){const k=(pos[t]||0)+i;const v=k<s[2]?3:k<s[1]?2:k<s[0]?1:0;st.push(v);cr+=v===3?1:v===2?0.75:v===1?0.5:0}
+        for(let i=0;i<b[t];i++){const k=(pos[t]||0)+i;const v=k<s[2]?3:k<s[1]?2:k<s[0]?1:0;st.push(v);cr+=v===3?1:v===2?0.95:v===1?0.65:0}
         pos[t]=(pos[t]||0)+b[t];f[t]={st,cr:r1(cr)}});fill[r+'|'+c]=f;});});
   return fill;
 }
@@ -423,7 +423,7 @@ function renderSide(){
     h+=crewBlock(c,t,'line '+l,S.crewNames);
     h+='</div>';});
   if(S.msg)h+='<div class="msg'+(S.msgBad?' bad':'')+'" role="status">'+esc(S.msg)+'</div>';
-  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Midway Electrical Manhours Log</b> in Smartsheet (one row per day, line, drop type and crew group), and + / − copy the Done credit (50% conduit / pipe, 25% wire pulled, 25% terminated) to Midway Breakpack Electric. Pick an earlier work date at the top to log a day you missed.</div></details>';
+  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Midway Electrical Manhours Log</b> in Smartsheet (one row per day, line, drop type and crew group), and + / − copy the Done credit (65% conduit / pipe, 30% wire pulled, 5% terminated) to Midway Breakpack Electric. Pick an earlier work date at the top to log a day you missed.</div></details>';
   h+='</div>';el.innerHTML=h;
 }
 function renderStatus(){
@@ -494,7 +494,7 @@ document.getElementById('wd').addEventListener('change',e=>{const v=e.target.val
 
 // ---------- quick steps: show the click at once, save in order behind the scenes ----------
 let stepQueue=Promise.resolve(),stepsPending=0;
-const credit=s=>Math.round((0.5*s[0]+0.25*s[1]+0.25*s[2])*100)/100;
+const credit=s=>Math.round((0.65*s[0]+0.3*s[1]+0.05*s[2])*100)/100;
 function stepClick(t,l,k,delta){
   const c=S.sheet&&S.sheet[t]&&S.sheet[t].L[l];if(!c)return;
   const s=(c.s||[0,0,0]).slice(),i=k-1,max=i?s[i-1]:c.scope,min=i<2?s[i+1]:0,v=s[i]+delta;
@@ -722,7 +722,7 @@ function renderHours(){
   if(clockTot-boardSince>40)flags.push('Since the time clock went live, ELEC punches total '+fmt(clockTot)+' hours but the board has '+fmt(boardSince)+'. The difference isn’t in the earned-vs-spent numbers above.');
   document.getElementById('hv-flags').innerHTML=flags.length?flags.map(f=>'<li>'+f+'</li>').join(''):'<li>Nothing to sort out.</li>';
 
-  document.getElementById('hv-method').textContent='Earned = budget hours × percent complete, where each drop counts '+W[0]*100+'% at conduit / pipe, '+(W[0]+W[1])*100+'% at wire pulled and 100% at terminated. Spent = crew members × hours each, as logged on the board. Budget rows live in Supabase → Table Editor → el_budget. Updated '+new Date(H.fetchedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.';
+  document.getElementById('hv-method').textContent='Earned = budget hours × percent complete, where each drop counts '+Math.round(W[0]*100)+'% at conduit / pipe, '+Math.round((W[0]+W[1])*100)+'% at wire pulled and 100% at terminated. Spent = crew members × hours each, as logged on the board. Budget rows live in Supabase → Table Editor → el_budget. Updated '+new Date(H.fetchedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.';
 }
 
 function drawBurn(labels,E,Sp,P){
