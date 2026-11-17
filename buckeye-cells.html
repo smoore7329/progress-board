@@ -558,10 +558,18 @@ svg.burn text{fill:var(--muted);font:11px var(--sans)}
       .then(function(j){bBusy=false;B=j;bAt=Date.now();if(view==='bud'&&S&&T){memo={};renderBudget();}},
         function(e){bBusy=false;document.getElementById('budMsg').innerHTML='<div class="banner err">'+esc(e.message||'Could not reach the hours server.')+'</div>';});
   }
-  function budOf(cell,k){var t=cell.slice(0,3),h=0,any=false;
-    B.budget.forEach(function(r){if(r.disc!==k)return;
+  function bidRows(){return B.budget.filter(function(r){return r.kind!=='mh';});}
+  function mhBud(k){return B.budget.filter(function(r){return r.kind==='mh'&&r.disc===k;}).reduce(function(a,r){return a+r.hours;},0);}
+  function bidTot(k){return bidRows().filter(function(r){return r.disc===k;}).reduce(function(a,r){return a+r.hours;},0);}
+  // share of each discipline's bid hours left for the crews after the material handling allowance is taken out
+  function netF(k){var t=bidTot(k);return t?1-mhBud(k)/t:1;}
+  function rawBud(cell,k){var t=cell.slice(0,3),h=0,any=false;
+    bidRows().forEach(function(r){if(r.disc!==k)return;
       if(r.cell?r.cell===cell:r.cell_type===t){any=true;h+=r.cell?r.hours:r.hours/NC[t];}});
     return any?h:null;}
+  function budOf(cell,k){var h=rawBud(cell,k);return h===null?null:h*netF(k);}
+  function recvPct(){return B.receiving&&!B.receiving.error?B.receiving.pct:null;}
+  function mhNums(k){var b=mhBud(k);if(!b)return null;var p=recvPct()||0,s=mhFor('Project',k);return {b:b,p:p,e:b*p/100,s:s,r:s>0?b*p/100/s:null};}
   function nums(cell,k){var b=budOf(cell,k);if(b===null)return null;var p=discVal(cell,k);p=p===null?0:p;var s=mhFor(cell,k);
     return {b:b,p:p,e:b*p/100,s:s,r:s>0?b*p/100/s:null};}
   function tot(list){var o={b:0,e:0,s:0};list.forEach(function(x){if(x){o.b+=x.b;o.e+=x.e;o.s+=x.s;}});o.p=o.b?o.e/o.b*100:0;o.r=o.s>0?o.e/o.s:null;return o;}
@@ -585,8 +593,11 @@ svg.burn text{fill:var(--muted);font:11px var(--sans)}
     var col={mech:[],ctrl:[],lift:[]},all=[];
     CELLS.forEach(function(c){var xs=DK.map(function(k){var x=nums(c,k);col[k].push(x);all.push(x);return x;});
       rows+='<tr'+(sel===c?' class="sel"':'')+'><td class="rowh"><button type="button" data-cell="'+c+'">'+c+'</button></td>'+xs.map(function(x){return box(x);}).join('')+box(tot(xs),' tot')+'</tr>';});
+    var mhx=DK.map(function(k){return k==='lift'?null:mhNums(k);});
+    rows+='<tr><td class="rowh"><b style="font-size:13px">Material<br>handling</b></td>'+mhx.map(function(x){return box(x);}).join('')+box(tot(mhx),' tot')+'</tr>';
+    DK.forEach(function(k,i){col[k].push(mhx[i]);});all=all.concat(mhx);
     var A=tot(all);
-    rows+='</tbody><tfoot><tr><td class="rowh"><b>All cells</b></td>'+DK.map(function(k){return box(tot(col[k]));}).join('')+box(A,' tot')+'</tr></tfoot>';
+    rows+='</tbody><tfoot><tr><td class="rowh"><b>Whole job</b></td>'+DK.map(function(k){return box(tot(col[k]));}).join('')+box(A,' tot')+'</tr></tfoot>';
     var hg=document.getElementById('hg');hg.innerHTML=rows;
     hg.querySelectorAll('[data-cell]').forEach(function(b){b.onclick=function(){sel=b.getAttribute('data-cell');ls('cb_sel',sel);renderBudget();};});
     var eac=A.p>0&&A.s>0?A.s/(A.p/100):null;
@@ -595,6 +606,7 @@ svg.burn text{fill:var(--muted);font:11px var(--sans)}
       '<div class="kpi"><span>Spent</span><b>'+fmt(A.s)+'</b><small>'+(A.b?Math.round(A.s/A.b*100):0)+'% of budget used</small></div>'+
       '<div class="kpi"><span>Earned</span><b>'+fmt(A.e)+'</b><small>'+pct(A.p)+'% complete (hours-weighted)</small></div>'+
       '<div class="kpi"><span>Earned ÷ spent</span><b class="'+ccls(A.r)+'">'+rtxt(A.r)+'</b><small>1.00 = on budget</small></div>'+
+      (function(){var M=tot(mhx);var rp=recvPct();return '<div class="kpi"><span>Material handling</span><b>'+fmt(M.s)+' / '+fmt(M.b)+'</b><small>'+(rp===null?'receiving unavailable':pct(rp)+'% of material received')+' · '+(M.s>0?rtxt(M.r):'no hours')+'</small></div>';})()+
       '<div class="kpi"><span>Projected at finish</span><b>'+(eac?fmt(eac):'—')+'</b><small>'+(eac?(eac>A.b?'+':'')+fmt(eac-A.b)+' vs budget':'needs hours and progress')+'</small></div>';
     // by discipline
     var mx=1;DK.forEach(function(k){var o=tot(col[k]);mx=Math.max(mx,o.b,o.s);});
@@ -610,20 +622,30 @@ svg.burn text{fill:var(--muted);font:11px var(--sans)}
     else{
       var wk=[],w=monday(first),end=monday(S.today);while(w<=end){wk.push(w);w=addDays(w,7);}
       var sp=[],ea=[],cum=0;
+      var mhB=mhBud('mech')+mhBud('ctrl'),rw=(B.receiving&&B.receiving.weeks)||[],tf=B.targetFinish,start='2026-10-22',pl=[];
       wk.forEach(function(m){B.weeks.forEach(function(r){if(r[0]===m)cum+=r[3];});sp.push(cum);
-        var e=earnedAt(addDays(m,6));ea.push(e.mech+e.ctrl+e.lift);});
-      var W=560,H=230,L=48,Bt=28,top=12,ymax=Math.max(1,Math.max.apply(null,sp.concat(ea))*1.15);
+        var e=earnedAt(addDays(m,6)),rp=0;rw.forEach(function(r){if(r[0]<=m)rp=r[1];});
+        ea.push(e.mech+e.ctrl+e.lift+mhB*rp/100);
+        if(tf){var f=(Date.parse(addDays(m,6))-Date.parse(start))/(Date.parse(tf)-Date.parse(start));pl.push(A.b*Math.max(0,Math.min(1,f)));}});
+      var W=560,H=230,L=48,Bt=28,top=12,ymax=Math.max(1,Math.max.apply(null,sp.concat(ea,pl))*1.15);
       var n=Math.max(wk.length-1,1);
       function X(i){return L+(W-L-12)*(wk.length===1?0.5:i/n);} function Y(v){return top+(H-top-Bt)*(1-v/ymax);}
       function line(a,c){return '<polyline fill="none" stroke="'+c+'" stroke-width="2.5" points="'+a.map(function(v,i){return X(i)+','+Y(v);}).join(' ')+'"/>'+a.map(function(v,i){return '<circle cx="'+X(i)+'" cy="'+Y(v)+'" r="3" fill="'+c+'"/>';}).join('');}
       var g='';[0,0.25,0.5,0.75,1].forEach(function(f){var v=ymax/1.15*f;g+='<line x1="'+L+'" x2="'+(W-12)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="var(--line-soft)"/><text x="'+(L-6)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+fmt(v)+'</text>';});
       wk.forEach(function(m,i){g+='<text x="'+X(i)+'" y="'+(H-8)+'" text-anchor="middle">'+m.slice(5).replace('-','/')+'</text>';});
-      burn.innerHTML='<svg class="burn" viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Cumulative spent and earned hours by week">'+g+line(sp,'var(--warn)')+line(ea,'var(--accent)')+'</svg>'+
-        '<div class="legend"><span><i class="sw" style="background:var(--warn)"></i>Spent (cumulative crew hours)</span><span><i class="sw" style="background:var(--accent)"></i>Earned (cumulative)</span></div>'+
+      burn.innerHTML='<svg class="burn" viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Cumulative spent and earned hours by week">'+g+line(sp,'var(--warn)')+line(ea,'var(--accent)')+(pl.length?'<polyline fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="6 4" points="'+pl.map(function(v,i){return X(i)+','+Y(v);}).join(' ')+'"/>':'')+'</svg>'+
+        '<div class="legend"><span><i class="sw" style="background:var(--warn)"></i>Spent (cumulative, crew + handlers)</span><span><i class="sw" style="background:var(--accent)"></i>Earned (cumulative)</span>'+(tf?'<span><i class="sw" style="border:2px dashed var(--muted);background:none"></i>Straight-line plan to '+esc(tf)+'</span>':'')+'</div>'+
         '<div class="hint">Weeks start Monday. Budget total is '+fmt(A.b)+' h. QC passes count as of today.</div>';
     }
     // flags
     var fl=[];
+    if(B.targetFinish){
+      var lastFull=addDays(monday(S.today),-7),lw={mech:0,ctrl:0};B.weeks.forEach(function(r){if(r[0]===lastFull&&r[1]!=='Project'&&lw[r[2]]!==undefined)lw[r[2]]+=r[3];});
+      var wl=Math.max(0.5,(Date.parse(B.targetFinish)-Date.parse(S.today))/604800000);
+      ['mech','ctrl'].forEach(function(k){var left=Math.max(0,tot(col[k].slice(0,CELLS.length)).b-tot(col[k].slice(0,CELLS.length)).e),need=left/wl;
+        fl.push('<b>'+DS[k]+' pace for '+esc(B.targetFinish)+'</b>: about '+fmt(need)+' crew h/week needed ('+fmt(left)+' h of work left over '+wl.toFixed(1)+' weeks); last full week was '+fmt(lw[k])+' h.');});
+    }
+    if(B.receiving&&B.receiving.error)fl.push(esc(B.receiving.error)+' Material handling shows 0% earned until it reads again.');
     if(A.s===0)fl.push('<b>No crew hours logged yet.</b> Earned ÷ spent shows once leads add hours on the Board tab (Crew hours box, per cell and discipline).');
     CELLS.forEach(function(c){DK.forEach(function(k){var x=nums(c,k);if(!x)return;
       if(x.s>x.b)fl.push('<b>'+c+' '+DS[k]+'</b>: '+fmt(x.s)+' h spent, over the '+fmt(x.b)+' h budget at '+pct(x.p)+'% complete.');
@@ -634,13 +656,14 @@ svg.burn text{fill:var(--muted);font:11px var(--sans)}
     var cos=B.budget.filter(function(r){return r.kind==='co';});
     document.getElementById('budSrc').innerHTML='<b style="color:var(--fg)">Budget source.</b> '+esc((B.budget[0]&&B.budget[0].source)||'Bid form')+
       ', Automation Mechanical and Electrical tabs, split evenly across the cells of each type ('+NC.AOB+' AOB, '+NC.AIB+' AIB, '+NC.MIB+' MIB, '+NC.XIB+' XIB)'+
-      (cos.length?'; plus '+cos.length+' change-order line'+(cos.length>1?'s':''):'')+'. Not on this board: G&amp;Cs, BOT lift (BL202), active aisles, lighting and power drops.';
+      (cos.length?'; plus '+cos.length+' change-order line'+(cos.length>1?'s':''):'')+'. Material handling allowance ('+fmt(mhBud('mech'))+' h Mechanical, '+fmt(mhBud('ctrl'))+' h Controls) is taken out of those disciplines\' bid hours and earned by % of material received in Airtable (truck receiving). Not on this board: G&amp;Cs, BOT lift (BL202), active aisles, lighting and power drops.';
     // bid lines for the selected cell
     var t=sel.slice(0,3),h='<h3>'+esc(sel)+' · budget lines</h3><div class="hint">Each bid line\'s share for one cell ('+NC[t]+' '+t+' cells), plus any change orders for this cell.</div>';
-    DK.forEach(function(k){var L2=B.budget.filter(function(r){return r.disc===k&&(r.cell?r.cell===sel:r.cell_type===t);});if(!L2.length)return;
+    DK.forEach(function(k){var L2=bidRows().filter(function(r){return r.disc===k&&(r.cell?r.cell===sel:r.cell_type===t);});if(!L2.length)return;
       h+='<details'+(k==='mech'?' open':'')+'><summary><span>'+DS[k]+'</span><span>'+fmt(budOf(sel,k))+' h</span></summary><table>'+
         L2.map(function(r){var nm=r.item==='VENDOR'?'PND cabling (vendor)':r.item;var v=r.cell?r.hours:r.hours/NC[t];
-          return '<tr><td>'+(r.kind==='co'?'<b>CO</b> ':'')+esc(nm)+'</td><td class="pn">'+esc(r.part||'')+'</td><td class="n">'+(Math.round(v*10)/10)+' h</td></tr>';}).join('')+'</table></details>';});
+          return '<tr><td>'+(r.kind==='co'?'<b>CO</b> ':'')+esc(nm)+'</td><td class="pn">'+esc(r.part||'')+'</td><td class="n">'+(Math.round(v*10)/10)+' h</td></tr>';}).join('')+
+        (netF(k)<1?'<tr><td><i>Less material handling allowance ('+Math.round((1-netF(k))*1000)/10+'%)</i></td><td></td><td class="n">−'+(Math.round(rawBud(sel,k)*(1-netF(k))*10)/10)+' h</td></tr>':'')+'</table></details>';});
     document.getElementById('bk').innerHTML=h;
   }
   function setView(v){view=v;document.getElementById('boardView').hidden=v!=='board';document.getElementById('budView').hidden=v!=='bud';
