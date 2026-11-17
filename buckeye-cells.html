@@ -154,6 +154,48 @@ button:focus-visible,.tile:focus-visible{outline:3px solid var(--accent);outline
 .empty{padding:30px 0;text-align:center;color:var(--muted)}
 .st:disabled{opacity:.45;cursor:not-allowed}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .banner.err,:root:not([data-theme="light"]) .qc.fail{background:#3A1C1C;color:#F2B8B8}}
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line)}
+.tabs button{height:42px;padding:0 18px;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;color:var(--muted);font:600 15px var(--sans);cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.view{display:flex;flex-direction:column;gap:16px}
+.view[hidden]{display:none}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.kpi span{display:block;font-size:12px;color:var(--muted)}
+.kpi b{font-size:24px;font-variant-numeric:tabular-nums}
+.kpi small{display:block;font-size:12px;color:var(--muted)}
+.good{color:var(--done-ink)} .bad{color:var(--wall)} .meh{color:var(--warn)}
+.bpanel{padding:14px 16px}
+.bpanel h3{margin:0 0 8px;font-size:16px}
+.gscroll{overflow-x:auto}
+table.hg{border-collapse:separate;border-spacing:4px;width:100%;min-width:720px}
+.hg th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:2px 6px}
+.hg td{padding:6px 8px;border-radius:6px;background:var(--t0);font-variant-numeric:tabular-nums;vertical-align:top}
+.hg td.rowh{background:none;padding-left:0}
+.hg td.rowh button{border:0;background:none;color:var(--fg);font:600 13px var(--mono);cursor:pointer;padding:4px 2px;text-align:left}
+.hg tr.sel td.rowh button{color:var(--accent);text-decoration:underline}
+.hg td b{display:block;font-size:14px}
+.hg td small{font-size:11px;color:var(--muted)}
+.hg td.na{background:transparent;border:1px dashed var(--line);color:var(--faint);font-size:12px}
+.hg td.g{background:var(--done)} .hg td.a{background:var(--warn-bg)} .hg td.r{background:color-mix(in srgb,var(--wall) 22%,var(--surface))}
+.hg td.tot{outline:2px solid var(--line)}
+.hg tfoot td{background:var(--sunken)}
+.twocol{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+.twocol>.card{flex:1 1 420px;min-width:0}
+.dbar{display:grid;grid-template-columns:110px minmax(0,1fr);gap:4px 10px;align-items:center;margin:10px 0}
+.dbar .nm{font-weight:600;font-size:13px;grid-row:span 3}
+.dbar>div{display:flex;align-items:center;gap:8px}
+.dbar i{flex:1;display:block;height:10px;border-radius:3px;background:var(--sunken)}
+.dbar i b{display:block;height:100%;border-radius:3px}
+.dbar em{flex:0 0 104px;font-style:normal;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.flags{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:column;gap:6px}
+.bk details{border-bottom:1px solid var(--line-soft);padding:6px 0}
+.bk summary{cursor:pointer;font-weight:600;display:flex;justify-content:space-between;gap:8px}
+.bk table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+.bk td{padding:3px 4px;border-bottom:1px dashed var(--line-soft);font-variant-numeric:tabular-nums}
+.bk td.n{text-align:right;white-space:nowrap}
+.bk td.pn{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+svg.burn text{fill:var(--muted);font:11px var(--sans)}
 </style>
 </head>
 <body>
@@ -176,6 +218,8 @@ button:focus-visible,.tile:focus-visible{outline:3px solid var(--accent);outline
     <div class="totals" id="totals"></div>
   </header>
 
+  <div class="tabs" role="tablist"><button type="button" role="tab" id="tabBoard" aria-selected="true">Board</button><button type="button" role="tab" id="tabBud" aria-selected="false">Hours vs budget</button></div>
+  <div class="view" id="boardView">
   <div class="seg" role="group" aria-label="Map layer" id="layers"></div>
 
   <section class="card map" aria-label="Cell map">
@@ -204,6 +248,25 @@ button:focus-visible,.tile:focus-visible{outline:3px solid var(--accent);outline
       <div class="card box" id="stats"></div>
       <div class="rules"><b style="color:var(--fg)">How % works.</b> Mechanical: Set 20 · Level 20 · Anchor 30 · Torque 30. Cable: Pulled 45 · Landed 40 · Tested 15. Tray &amp; cabinets: Set 40 · Anchor 30 · Bond 30. Install steps earn a piece up to 90%; QC pass in Smartsheet (Cleared by QC) adds the last 10%. Packages, disciplines and cells roll up by Task Weight, the same way Buckeye 2.0 does (cell % here leaves out power drops). Taps are copied to Install % on each piece in Buckeye 2.0. Power drops stay on the electrical board.</div>
     </aside>
+  </div>
+  </div>
+  <div class="view" id="budView" hidden>
+    <div id="budMsg"></div>
+    <div class="kpis" id="kpis"></div>
+    <section class="card bpanel">
+      <h3>Hours by cell and discipline</h3>
+      <div class="hint" style="margin-bottom:8px">Each box: hours spent / budget, then % complete and earned ÷ spent (earned = budget × % complete). Green 1.00 and up, amber 0.85–0.99, red under 0.85, grey = no hours logged yet. Tap a cell to see its bid lines.</div>
+      <div class="gscroll"><table class="hg" id="hg"></table></div>
+    </section>
+    <div class="twocol">
+      <section class="card bpanel"><h3>Weekly burn</h3><div id="burn"></div></section>
+      <section class="card bpanel"><h3>By discipline</h3><div id="dbars"></div></section>
+    </div>
+    <div class="twocol">
+      <section class="card bpanel bk" id="bk"></section>
+      <section class="card bpanel"><h3>Flags</h3><ul class="flags" id="flags"></ul>
+        <p class="rules" style="margin:12px 0 0" id="budSrc"></p></section>
+    </div>
   </div>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
@@ -477,7 +540,118 @@ button:focus-visible,.tile:focus-visible{outline:3px solid var(--accent);outline
       '<div class="tot"><span>Pieces QC passed</span><b>'+qc+'</b></div>'+
       '<div class="tot"><span>Man-hours</span><b>'+mh+'</b></div>';
   }
-  function render(){if(!S||!T)return;memo={};renderBanners();renderStatus();renderLayers();renderMap();renderDetail();renderHours();renderSide();}
+  // ---------- Hours vs budget tab (read-only; data from buckeye-cells-hours-api) ----------
+  var HAPI=(function(){try{var q=new URLSearchParams(location.search).get('hapi');if(q)return q;}catch(e){}
+    return 'https://vbfspyruvaoqmhuutphl.supabase.co/functions/v1/buckeye-cells-hours-api';})();
+  var view='board',B=null,bBusy=false,bAt=0;
+  var NC={AOB:0,AIB:0,MIB:0,XIB:0};CELLS.forEach(function(c){NC[c.slice(0,3)]++;});
+  var DK=['mech','ctrl','lift'],DS={mech:'Mechanical',ctrl:'Controls',lift:'Lift cell'};
+  function fmt(n){return Math.round(n).toLocaleString('en-US');}
+  function rcls(r){return r===null?'':r>=1?'g':r>=0.85?'a':'r';}
+  function rtxt(r){return r===null?'—':r.toFixed(2);}
+  function ccls(r){return r===null?'':r>=1?'good':r>=0.85?'meh':'bad';}
+  function loadBudget(force){
+    if(bBusy||(!force&&B&&Date.now()-bAt<60000))return;
+    var c=creds();bBusy=true;
+    fetch(HAPI,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'budget',code:c.code})})
+      .then(function(r){return r.json().then(function(j){if(!r.ok||j.error)throw new Error(j.message||'Could not load the budget.');return j;});})
+      .then(function(j){bBusy=false;B=j;bAt=Date.now();if(view==='bud'&&S&&T){memo={};renderBudget();}},
+        function(e){bBusy=false;document.getElementById('budMsg').innerHTML='<div class="banner err">'+esc(e.message||'Could not reach the hours server.')+'</div>';});
+  }
+  function budOf(cell,k){var t=cell.slice(0,3),h=0,any=false;
+    B.budget.forEach(function(r){if(r.disc!==k)return;
+      if(r.cell?r.cell===cell:r.cell_type===t){any=true;h+=r.cell?r.hours:r.hours/NC[t];}});
+    return any?h:null;}
+  function nums(cell,k){var b=budOf(cell,k);if(b===null)return null;var p=discVal(cell,k);p=p===null?0:p;var s=mhFor(cell,k);
+    return {b:b,p:p,e:b*p/100,s:s,r:s>0?b*p/100/s:null};}
+  function tot(list){var o={b:0,e:0,s:0};list.forEach(function(x){if(x){o.b+=x.b;o.e+=x.e;o.s+=x.s;}});o.p=o.b?o.e/o.b*100:0;o.r=o.s>0?o.e/o.s:null;return o;}
+  function box(x,extra){if(!x)return '<td class="na">no scope</td>';
+    return '<td class="'+rcls(x.r)+(extra||'')+'"><b>'+fmt(x.s)+' / '+fmt(x.b)+'</b><small>'+pct(x.p)+'% · '+(x.s>0?rtxt(x.r):'no hours')+'</small></td>';}
+  // earned hours per discipline as of the end of a day, replaying the step history
+  function earnedAt(day){
+    var prog={};B.plog.forEach(function(r){if(r[1]<=day)prog[r[0]]=r[2];});
+    var keep=S.progress;S.progress=prog;memo={};
+    var o={mech:0,ctrl:0,lift:0};
+    CELLS.forEach(function(c){DK.forEach(function(k){var b=budOf(c,k);if(b===null||!T.cells[c].top[k].length)return;o[k]+=b*(discVal(c,k)||0)/100;});});
+    S.progress=keep;memo={};return o;}
+  function iso(d){return d.toISOString().slice(0,10);}
+  function addDays(s,n){var d=new Date(s+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return iso(d);}
+  function monday(s){var d=new Date(s+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));return iso(d);}
+  function renderBudget(){
+    var msg=document.getElementById('budMsg');
+    if(!B){msg.innerHTML='<div class="empty">Loading budget and hours…</div>';loadBudget(true);return;}
+    msg.innerHTML='';
+    var rows='<thead><tr><th>Cell</th><th>Mechanical</th><th>Controls</th><th>Lift cell</th><th>Cell total</th></tr></thead><tbody>';
+    var col={mech:[],ctrl:[],lift:[]},all=[];
+    CELLS.forEach(function(c){var xs=DK.map(function(k){var x=nums(c,k);col[k].push(x);all.push(x);return x;});
+      rows+='<tr'+(sel===c?' class="sel"':'')+'><td class="rowh"><button type="button" data-cell="'+c+'">'+c+'</button></td>'+xs.map(function(x){return box(x);}).join('')+box(tot(xs),' tot')+'</tr>';});
+    var A=tot(all);
+    rows+='</tbody><tfoot><tr><td class="rowh"><b>All cells</b></td>'+DK.map(function(k){return box(tot(col[k]));}).join('')+box(A,' tot')+'</tr></tfoot>';
+    var hg=document.getElementById('hg');hg.innerHTML=rows;
+    hg.querySelectorAll('[data-cell]').forEach(function(b){b.onclick=function(){sel=b.getAttribute('data-cell');ls('cb_sel',sel);renderBudget();};});
+    var eac=A.p>0&&A.s>0?A.s/(A.p/100):null;
+    document.getElementById('kpis').innerHTML=
+      '<div class="kpi"><span>Budget hours</span><b>'+fmt(A.b)+'</b><small>Mech '+fmt(tot(col.mech).b)+' · Ctrl '+fmt(tot(col.ctrl).b)+' · Lift '+fmt(tot(col.lift).b)+'</small></div>'+
+      '<div class="kpi"><span>Spent</span><b>'+fmt(A.s)+'</b><small>'+(A.b?Math.round(A.s/A.b*100):0)+'% of budget used</small></div>'+
+      '<div class="kpi"><span>Earned</span><b>'+fmt(A.e)+'</b><small>'+pct(A.p)+'% complete (hours-weighted)</small></div>'+
+      '<div class="kpi"><span>Earned ÷ spent</span><b class="'+ccls(A.r)+'">'+rtxt(A.r)+'</b><small>1.00 = on budget</small></div>'+
+      '<div class="kpi"><span>Projected at finish</span><b>'+(eac?fmt(eac):'—')+'</b><small>'+(eac?(eac>A.b?'+':'')+fmt(eac-A.b)+' vs budget':'needs hours and progress')+'</small></div>';
+    // by discipline
+    var mx=1;DK.forEach(function(k){var o=tot(col[k]);mx=Math.max(mx,o.b,o.s);});
+    document.getElementById('dbars').innerHTML=DK.map(function(k){var o=tot(col[k]);
+      function bar(v,c,l){return '<div><i><b style="width:'+(v/mx*100)+'%;background:'+c+'"></b></i><em>'+l+' '+fmt(v)+'</em></div>';}
+      return '<div class="dbar"><span class="nm">'+DS[k]+'<br><small class="'+ccls(o.r)+'">'+rtxt(o.r)+'</small></span>'+
+        bar(o.b,'var(--line)','Budget')+bar(o.e,'var(--accent)','Earned')+bar(o.s,'var(--warn)','Spent')+'</div>';}).join('')+
+      '<div class="legend"><span><i class="sw" style="background:var(--line)"></i>Budget</span><span><i class="sw" style="background:var(--accent)"></i>Earned</span><span><i class="sw" style="background:var(--warn)"></i>Spent</span></div>';
+    // weekly burn: cumulative spent (crew hours) and earned (step history replayed to each week's end)
+    var first=null;B.plog.forEach(function(r){if(!first||r[1]<first)first=r[1];});B.weeks.forEach(function(r){if(!first||r[0]<first)first=r[0];});
+    var burn=document.getElementById('burn');
+    if(!first){burn.innerHTML='<div class="hint">Nothing logged yet.</div>';}
+    else{
+      var wk=[],w=monday(first),end=monday(S.today);while(w<=end){wk.push(w);w=addDays(w,7);}
+      var sp=[],ea=[],cum=0;
+      wk.forEach(function(m){B.weeks.forEach(function(r){if(r[0]===m)cum+=r[3];});sp.push(cum);
+        var e=earnedAt(addDays(m,6));ea.push(e.mech+e.ctrl+e.lift);});
+      var W=560,H=230,L=48,Bt=28,top=12,ymax=Math.max(1,Math.max.apply(null,sp.concat(ea))*1.15);
+      var n=Math.max(wk.length-1,1);
+      function X(i){return L+(W-L-12)*(wk.length===1?0.5:i/n);} function Y(v){return top+(H-top-Bt)*(1-v/ymax);}
+      function line(a,c){return '<polyline fill="none" stroke="'+c+'" stroke-width="2.5" points="'+a.map(function(v,i){return X(i)+','+Y(v);}).join(' ')+'"/>'+a.map(function(v,i){return '<circle cx="'+X(i)+'" cy="'+Y(v)+'" r="3" fill="'+c+'"/>';}).join('');}
+      var g='';[0,0.25,0.5,0.75,1].forEach(function(f){var v=ymax/1.15*f;g+='<line x1="'+L+'" x2="'+(W-12)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="var(--line-soft)"/><text x="'+(L-6)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+fmt(v)+'</text>';});
+      wk.forEach(function(m,i){g+='<text x="'+X(i)+'" y="'+(H-8)+'" text-anchor="middle">'+m.slice(5).replace('-','/')+'</text>';});
+      burn.innerHTML='<svg class="burn" viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Cumulative spent and earned hours by week">'+g+line(sp,'var(--warn)')+line(ea,'var(--accent)')+'</svg>'+
+        '<div class="legend"><span><i class="sw" style="background:var(--warn)"></i>Spent (cumulative crew hours)</span><span><i class="sw" style="background:var(--accent)"></i>Earned (cumulative)</span></div>'+
+        '<div class="hint">Weeks start Monday. Budget total is '+fmt(A.b)+' h. QC passes count as of today.</div>';
+    }
+    // flags
+    var fl=[];
+    if(A.s===0)fl.push('<b>No crew hours logged yet.</b> Earned ÷ spent shows once leads add hours on the Board tab (Crew hours box, per cell and discipline).');
+    CELLS.forEach(function(c){DK.forEach(function(k){var x=nums(c,k);if(!x)return;
+      if(x.s>x.b)fl.push('<b>'+c+' '+DS[k]+'</b>: '+fmt(x.s)+' h spent, over the '+fmt(x.b)+' h budget at '+pct(x.p)+'% complete.');
+      else if(x.p>=20&&x.s>0&&x.s/(x.p/100)>x.b*1.15)fl.push('<b>'+c+' '+DS[k]+'</b>: on pace for about '+fmt(x.s/(x.p/100))+' h vs '+fmt(x.b)+' budgeted.');
+      else if(x.p===0&&x.s>0)fl.push('<b>'+c+' '+DS[k]+'</b>: '+fmt(x.s)+' h logged with no progress tapped.');
+      else if(x.p>=5&&x.s===0&&A.s>0)fl.push('<b>'+c+' '+DS[k]+'</b>: '+pct(x.p)+'% done with no hours logged.');});});
+    document.getElementById('flags').innerHTML=fl.length?fl.slice(0,10).map(function(f){return '<li>'+f+'</li>';}).join('')+(fl.length>10?'<li>…and '+(fl.length-10)+' more</li>':''):'<li>Nothing flagged.</li>';
+    var cos=B.budget.filter(function(r){return r.kind==='co';});
+    document.getElementById('budSrc').innerHTML='<b style="color:var(--fg)">Budget source.</b> '+esc((B.budget[0]&&B.budget[0].source)||'Bid form')+
+      ', Automation Mechanical and Electrical tabs, split evenly across the cells of each type ('+NC.AOB+' AOB, '+NC.AIB+' AIB, '+NC.MIB+' MIB, '+NC.XIB+' XIB)'+
+      (cos.length?'; plus '+cos.length+' change-order line'+(cos.length>1?'s':''):'')+'. Not on this board: G&amp;Cs, BOT lift (BL202), active aisles, lighting and power drops.';
+    // bid lines for the selected cell
+    var t=sel.slice(0,3),h='<h3>'+esc(sel)+' · budget lines</h3><div class="hint">Each bid line\'s share for one cell ('+NC[t]+' '+t+' cells), plus any change orders for this cell.</div>';
+    DK.forEach(function(k){var L2=B.budget.filter(function(r){return r.disc===k&&(r.cell?r.cell===sel:r.cell_type===t);});if(!L2.length)return;
+      h+='<details'+(k==='mech'?' open':'')+'><summary><span>'+DS[k]+'</span><span>'+fmt(budOf(sel,k))+' h</span></summary><table>'+
+        L2.map(function(r){var nm=r.item==='VENDOR'?'PND cabling (vendor)':r.item;var v=r.cell?r.hours:r.hours/NC[t];
+          return '<tr><td>'+(r.kind==='co'?'<b>CO</b> ':'')+esc(nm)+'</td><td class="pn">'+esc(r.part||'')+'</td><td class="n">'+(Math.round(v*10)/10)+' h</td></tr>';}).join('')+'</table></details>';});
+    document.getElementById('bk').innerHTML=h;
+  }
+  function setView(v){view=v;document.getElementById('boardView').hidden=v!=='board';document.getElementById('budView').hidden=v!=='bud';
+    document.getElementById('tabBoard').setAttribute('aria-selected',v==='board');document.getElementById('tabBud').setAttribute('aria-selected',v==='bud');
+    ls('cb_view',v);if(v==='bud'&&S)loadBudget(false);render();}
+  document.getElementById('tabBoard').onclick=function(){setView('board');};
+  document.getElementById('tabBud').onclick=function(){setView('bud');};
+  if(ls('cb_view')==='bud'){view='bud';document.getElementById('boardView').hidden=true;document.getElementById('budView').hidden=false;
+    document.getElementById('tabBoard').setAttribute('aria-selected','false');document.getElementById('tabBud').setAttribute('aria-selected','true');}
+
+  function render(){if(!S||!T)return;memo={};renderBanners();renderStatus();renderLayers();renderMap();renderDetail();renderHours();renderSide();if(view==='bud'){loadBudget(false);renderBudget();}}
 
   // ---------- start ----------
   var nm=document.getElementById('nm'),cd=document.getElementById('cd'),dt=document.getElementById('dt');
