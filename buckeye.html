@@ -88,6 +88,30 @@ h1{margin:0;font-size:30px;font-weight:700;text-wrap:balance}
 .sq.st2{background:#F2C200;border-color:#B38F00}
 .sq.st3{background:#3E8E2A;border-color:#2C6B1C}
 .steps{display:flex;flex-direction:column;gap:6px}
+/* per-drop progress: a partly piped drop shows orange up to how far along the run the pipe is */
+.sq.pt{border-color:#B5541A;background:linear-gradient(90deg,#E8742A 0 var(--pq),var(--panel) var(--pq) 100%)}
+.dps{display:flex;flex-direction:column;gap:6px}
+.dpb{display:flex;align-items:flex-start;gap:8px}
+.dpb .bl{font:600 10.5px var(--mono);color:var(--muted);min-width:44px;padding-top:7px}
+.dpb .bs{display:flex;flex-wrap:wrap;gap:4px}
+.dp{width:30px;height:30px;border-radius:5px;border:1.5px solid var(--sq-off-border);background:var(--panel);color:var(--ink);font:600 11px var(--mono);cursor:pointer;padding:0}
+.dp.st1{background:#E8742A;border-color:#B5541A;color:#1B1F23}
+.dp.st2{background:#F2C200;border-color:#B38F00;color:#1B1F23}
+.dp.st3{background:#3E8E2A;border-color:#2C6B1C;color:#fff}
+.dp.pt{border-color:#B5541A;background:linear-gradient(90deg,#E8742A 0 var(--pq),var(--panel) var(--pq) 100%)}
+.dp[aria-pressed="true"]{outline:3px solid var(--grid);outline-offset:1px}
+.pk{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.lnk{border:0;background:none;color:var(--done);font:600 12.5px var(--sans);cursor:pointer;padding:2px 4px;text-decoration:underline}
+.lnk:disabled{color:var(--muted);cursor:default;text-decoration:none}
+.qbs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.qb{min-height:40px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:500 11.5px var(--sans);cursor:pointer;padding:3px 2px;line-height:1.15;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.qb b{font:600 13px var(--mono)}
+.qb.on{border:2px solid #B5541A;background:color-mix(in srgb,#E8742A 18%,var(--panel))}
+.qb:disabled,.mk:disabled{opacity:.42;cursor:default}
+.mks{display:flex;flex-wrap:wrap;gap:6px}
+.mk{height:38px;padding:0 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:600 12.5px var(--sans);cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.mk .sq{width:13px;height:13px}
+.dsum{font:12px var(--mono);color:var(--muted)}
 .srow{display:flex;align-items:center;gap:8px}
 .srow .sq{width:14px;height:14px;flex:none}
 .srow .sn{flex:1;min-width:0;font-size:13px}
@@ -238,11 +262,12 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
   </div>
 
   <div class="legend">
-    <span><i class="sq st1"></i> Conduit / pipe · 65%</span>
+    <span><i class="sq pt" style="--pq:50%"></i> Pipe part way along the run</span>
+    <span><i class="sq st1"></i> Pipe complete · 65%</span>
     <span><i class="sq st2"></i> Wire pulled · 95%</span>
     <span><i class="sq st3"></i> Terminated · 100%</span>
     <span><i class="sq"></i> Not started</span>
-    <span>Done = 65% conduit / pipe + 30% wire pulled + 5% terminated</span>
+    <span>Each square is one drop. Done = 65% × how far the pipe is along the run + 30% wire pulled + 5% terminated</span>
   </div>
 
   <section class="tally" aria-labelledby="tally-h">
@@ -349,11 +374,18 @@ const types=l=>S.data&&S.data.locs[l]?S.data.locs[l]:{};
 const dayWord=()=>(!S.date||!S.data||S.date===S.data.today)?'today':new Date(S.date+'T12:00:00').toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'});
 function tot(l){let d=0,s=0,mh=0,mhDay=0;const T=types(l);for(const k in T){const c=T[k];d+=Math.min(c.done,c.scope);s+=c.scope;mh+=c.mhTotal;mhDay+=c.mh}return{d,s,mh,mhDay}}
 
+// one drop = [quarters of pipe 0-4, wired 0/1, terminated 0/1] (same as the Palestine and Midway boards)
+const QW=['Not started','25% of the run','50% of the run','75% of the run','Pipe complete'];
+const dropV=d=>d[2]?3:d[1]?2:d[0]>=4?1:d[0]>0?'p':0;
+const dropCls=d=>{const v=dropV(d);return v==='p'?' pt':v?' st'+v:''};
+const dropStyle=d=>dropV(d)==='p'?' style="--pq:'+(d[0]*25)+'%"':'';
+const dropWord=d=>d[2]?'terminated':d[1]?'wire pulled':QW[d[0]].toLowerCase();
+function fracWord(qs){const v=qs/4;return v+(v===1?' drop':' drops')}
 // ---------- rendering ----------
-// terminated (green) first, then wire pulled (yellow), then conduit / pipe (orange)
-function squares(s,scope){s=s||[0,0,0];let h='';for(let i=0;i<scope;i++){const v=i<s[2]?3:i<s[1]?2:i<s[0]?1:0;h+='<i class="sq'+(v?' st'+v:'')+'"></i>'}return h}
+// each square is one drop, #1 first
+function squares(ds,scope){let h='';for(let i=0;i<scope;i++){const d=(ds&&ds[i])||[0,0,0];h+='<i class="sq'+dropCls(d)+'"'+dropStyle(d)+'></i>'}return h}
 function typeRows(l){const T=types(l);return ORDER.filter(k=>T[k]).map(k=>{const c=T[k];
-  return '<div class="tg" title="'+esc(k+' '+DESC[k]+': '+fmt(c.done)+' of '+c.scope)+'"><span class="c">'+k+'</span><span class="sqs" role="img" aria-label="'+esc(k+': '+c.scope+' drops, '+c.s[2]+' terminated, '+(c.s[1]-c.s[2])+' wire pulled, '+(c.s[0]-c.s[1])+' conduit or pipe only')+'">'+squares(c.s,c.scope)+'</span></div>'}).join('')}
+  return '<div class="tg" title="'+esc(k+' '+DESC[k]+': '+fmt(c.done)+' of '+c.scope)+'"><span class="c">'+k+'</span><span class="sqs" role="img" aria-label="'+esc(k+': '+c.scope+' drops, '+c.s[2]+' terminated, '+(c.s[1]-c.s[2])+' wire pulled, '+(c.s[0]-c.s[1])+' pipe complete')+'">'+squares(c.drops,c.scope)+'</span></div>'}).join('')}
 function card(l,extraStyle){const t=tot(l),p=t.s?t.d/t.s:0;
   return '<button type="button" class="cell'+(l===S.sel?' sel':'')+(t.s&&p>=1?' full':'')+'" data-loc="'+l+'"'+(extraStyle?' style="'+extraStyle+'"':'')+'>'+
    '<div class="nm"><span>'+esc(locName(l))+'</span><span>'+fmt(t.d)+'/'+t.s+'</span></div>'+
@@ -383,6 +415,28 @@ function renderKpis(){
   document.getElementById('kpis').innerHTML=k.map(x=>'<div class="kpi"><span class="l">'+esc(x[0])+'</span><span class="v">'+esc(x[1])+'</span><span class="s">'+esc(x[2])+'</span></div>').join('');
 }
 let sideLoc=null;
+const pickOf=(t,l)=>(S.pick&&S.pick.key===t+'|'+l)?S.pick.ns:[];
+function dropPanel(t,l,c){
+  const ds=c.drops||[],pk=pickOf(t,l),P=pk.map(n=>ds[n-1]||[0,0,0]),np=P.length;
+  const full=ds.filter(d=>d[0]>=4).length,part=ds.filter(d=>d[0]>0&&d[0]<4).length,wired=ds.filter(d=>d[1]).length,term=ds.filter(d=>d[2]).length;
+  let h='<div class="steps"><div class="dsum">Pipe complete '+full+'/'+c.scope+(part?' · in progress '+part:'')+' · wired '+wired+' · terminated '+term+'</div>';
+  h+='<div class="dps" role="group" aria-label="'+t+' drops"><div class="dpb"><div class="bs">'+
+    Array.from({length:c.scope},(_,i)=>i+1).map(n=>{const d=ds[n-1]||[0,0,0];return '<button type="button" class="dp'+dropCls(d)+'"'+dropStyle(d)+' data-act="pick" data-t="'+t+'" data-n="'+n+'" aria-pressed="'+pk.includes(n)+'" title="'+t+' #'+n+': '+dropWord(d)+'" aria-label="'+t+' drop '+n+', '+dropWord(d)+'">'+n+'</button>'}).join('')+'</div></div></div>';
+  h+='<div class="pk">'+(np?np+' picked':'Click the drops your crew worked, then what they got to.')+
+    ' <button type="button" class="lnk" data-act="pickall" data-t="'+t+'">All</button><button type="button" class="lnk" data-act="pickclear" data-t="'+t+'"'+(np?'':' disabled')+'>Clear</button></div>';
+  const anyWired=P.some(d=>d[1]),sameQ=np&&P.every(d=>d[0]===P[0][0])?P[0][0]:-1;
+  h+='<div class="srow"><i class="sq st1"></i><span class="sn">Conduit / pipe <span>+65% × how far along the run</span></span></div><div class="qbs">'+
+    QW.map((w,q)=>'<button type="button" class="qb'+(sameQ===q?' on':'')+'" data-act="pipe" data-q="'+q+'" data-t="'+t+'"'+(!np||(anyWired&&q<4)?' disabled':'')+(anyWired&&q<4?' title="Take the wire off first"':'')+'><b>'+(q===4?'Done':q*25+'%')+'</b>'+(q===0?'not started':q===4?'complete':'of run')+'</button>').join('')+'</div>';
+  const allW=np&&P.every(d=>d[1]),allT=np&&P.every(d=>d[2]);
+  const wOn=np&&P.every(d=>d[0]>=4),tOn=np&&P.every(d=>d[1]);
+  h+='<div class="mks">'+
+    (allW?'<button type="button" class="mk" data-act="wire" data-on="0" data-t="'+t+'"'+(P.some(d=>d[2])?' disabled title="Take terminated off first"':'')+'><i class="sq"></i>Take wire off</button>'
+         :'<button type="button" class="mk" data-act="wire" data-on="1" data-t="'+t+'"'+(wOn?'':' disabled'+(np?' title="Wire needs the pipe complete"':''))+'><i class="sq st2"></i>Wire pulled <span class="msg">+30%</span></button>')+
+    (allT?'<button type="button" class="mk" data-act="term" data-on="0" data-t="'+t+'"><i class="sq"></i>Take terminated off</button>'
+         :'<button type="button" class="mk" data-act="term" data-on="1" data-t="'+t+'"'+(tOn?'':' disabled'+(np?' title="Terminated needs the wire pulled"':''))+'><i class="sq st3"></i>Terminated <span class="msg">+5%</span></button>')+'</div>';
+  if(np&&!wOn&&!allW)h+='<div class="note">Wire unlocks when every picked drop has its pipe complete.</div>';
+  return h+'</div>';
+}
 function renderSide(){
   const l=S.sel,t=tot(l),el=document.getElementById('side');
   const oldSb=el.querySelector('.sb'),keep=(oldSb&&sideLoc===l)?oldSb.scrollTop:0;sideLoc=l;
@@ -391,21 +445,15 @@ function renderSide(){
   const T=types(l);
   h+='<span class="lab">Drops on this cell · '+esc(dayWord())+'</span>';
   ORDER.filter(k=>T[k]).forEach(k=>{const c=T[k],open=S.open===k;
-    const s=c.s||[0,0,0],dd=c.d||[0,0,0];
-    let steps='<div class="steps">';
-    STEPS.forEach((nmS,i)=>{const max=i?s[i-1]:c.scope,min=i<2?s[i+1]:0;
-      steps+='<div class="srow"><i class="sq st'+(i+1)+'"></i><span class="sn">'+nmS+' <span>+'+STEP_PCT[i]+'%</span></span>'+
-        '<button class="stp" type="button" data-act="dec" data-k="'+(i+1)+'" data-t="'+k+'" aria-label="One fewer '+k+' at '+nmS+' on '+esc(locName(l))+'"'+(s[i]<=min?' disabled':'')+'>−</button>'+
-        '<span class="cnt">'+s[i]+'/'+max+'</span>'+
-        '<button class="stp" type="button" data-act="inc" data-k="'+(i+1)+'" data-t="'+k+'" aria-label="One more '+k+' at '+nmS+' on '+esc(locName(l))+'"'+(s[i]>=max?' disabled':'')+'>+</button></div>'});
-    steps+='</div>';
-    const moved=STEPS.map((nmS,i)=>dd[i]?(dd[i]>0?'+':'')+dd[i]+' '+nmS.toLowerCase():'').filter(Boolean).join(', ');
+    const dd=c.d||[0,0,0],dq=c.dq||0;
+    const steps=dropPanel(k,l,c);
+    const moved=[dq?(dq>0?'+':'−')+fracWord(Math.abs(dq))+' pipe':''].concat([1,2].map(i=>dd[i]?(dd[i]>0?'+':'')+dd[i]+' '+STEPS[i].toLowerCase():'')).filter(Boolean).join(', ');
     h+='<div class="trow'+(open?' open':'')+'"><div class="r1"><span class="code">'+k+'</span><span class="desc">'+esc(DESC[k])+'</span><span class="done">'+fmt(c.done)+'/'+c.scope+'</span></div>'+steps+
       '<div class="today">'+r1(c.mhTotal)+' MH to date · '+esc(dayWord())+': '+(c.mh?r1(c.mh)+' MH':'no hours logged')+(moved?' · '+esc(moved):'')+(c.by?' · by '+esc(c.by):'')+'</div>';
     h+=crewBlock(c,k,locName(l),S.data.crewNames);
     h+='</div>';});
   if(S.msg)h+='<div class="msg'+(S.msgBad?' bad':'')+'" role="status">'+esc(S.msg)+'</div>';
-  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Buckeye Electrical Manhours Log</b> in Smartsheet (one row per day, cell, drop type and crew group), and + / − copies the Done credit (65% conduit / pipe, 30% wire pulled, 5% terminated) to <b>Master Power drops</b> a few seconds later. Hours are not copied to Master Power drops.</div></details>';
+  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record. Each save also writes a row to <b>Buckeye Electrical Manhours Log</b> in Smartsheet (one row per day, cell, drop type and crew group), and every progress change copies the cell’s % (Done credit: 65% × how far the pipe is along each run, 30% wire pulled, 5% terminated, ÷ drops) to its Power drops row in the <b>Buckeye 2.0</b> tracker a few seconds later. Hours are not copied to the tracker.</div></details>';
   h+='</div>';el.innerHTML=h;
   const sb=el.querySelector('.sb');if(sb&&keep)sb.scrollTop=keep;
 }
@@ -458,18 +506,29 @@ document.getElementById('wd').addEventListener('change',e=>{const v=e.target.val
 
 // ---------- quick steps: show the click at once, save in order behind the scenes ----------
 let stepQueue=Promise.resolve(),stepsPending=0;
-const credit=s=>Math.round((0.65*s[0]+0.3*s[1]+0.05*s[2])*100)/100;
-function stepClick(t,l,k,delta){
+// what = 'pipe' (val = quarters 0-4), 'wire' or 'term' (val = true / false); applies to every picked drop
+function dropClick(t,l,what,val){
   const c=types(l)[t];if(!c)return;
-  const s=(c.s||[0,0,0]).slice(),i=k-1,max=i?s[i-1]:c.scope,min=i<2?s[i+1]:0,v=s[i]+delta;
-  if(v>max||v<min)return;
-  const before=c.done;s[i]=v;c.s=s;c.done=credit(s);c.d=(c.d||[0,0,0]).slice();c.d[i]+=delta;c.dropsToday=Math.round((c.dropsToday+c.done-before)*100)/100;
+  const ns=pickOf(t,l).slice();if(!ns.length)return;
+  const ds=(c.drops||[]).map(d=>d.slice()),old=ns.map(n=>ds[n-1]||[0,0,0]);
+  if(what==='pipe'&&val<4&&old.some(d=>d[1]))return;
+  if(what==='wire'&&val&&old.some(d=>d[0]<4))return;
+  if(what==='wire'&&!val&&old.some(d=>d[2]))return;
+  if(what==='term'&&val&&old.some(d=>!d[1]))return;
+  const sum=a=>[a.reduce((x,d)=>x+d[0],0),a.filter(d=>d[0]>=4).length,a.filter(d=>d[1]).length,a.filter(d=>d[2]).length];
+  const before=sum(ds),doneBefore=c.done;
+  ns.forEach(n=>{const d=ds[n-1]=(ds[n-1]||[0,0,0]).slice();if(what==='pipe')d[0]=val;else if(what==='wire')d[1]=val?1:0;else d[2]=val?1:0});
+  const after=sum(ds);
+  c.drops=ds;c.cq=after[0];c.s=after.slice(1);c.done=Math.round((0.65*after[0]/4+0.3*after[2]+0.05*after[3])*100)/100;
+  c.dq=(c.dq||0)+after[0]-before[0];c.d=(c.d||[0,0,0]).map((x,i)=>x+after[i+1]-before[i+1]);c.dropsToday=Math.round(((c.dropsToday||0)+c.done-doneBefore)*100)/100;
+  S.pick=null;
+  const word=what==='pipe'?'pipe '+QW[val].toLowerCase():(val?'':'took off ')+(what==='wire'?'wire pulled':'terminated');
   stepsPending++;S.msg='Saving…';S.msgBad=false;render();
-  const payload={type:t,loc:l,step:k,delta},nm=locName(l);
+  const payload={type:t,loc:l,ns,what},nm=locName(l);if(what==='pipe')payload.q=val;else payload.on=!!val;
   stepQueue=stepQueue.then(async()=>{
     try{
-      const r=await api('step',payload);stepsPending--;
-      if(!stepsPending){apply(r.data);S.msg=t+' on '+nm+': '+fmt(r.result.done)+' of '+r.result.scope+' done. Saved.';S.msgBad=false}
+      const r=await api('drops',payload);stepsPending--;
+      if(!stepsPending){apply(r.data);S.msg=t+' '+ns.map(n=>'#'+n).join(', ')+' on '+nm+': '+word+'. Now '+fmt(r.result.done)+' of '+r.result.scope+' done. Saved.';S.msgBad=false}
     }catch(e){
       stepsPending--;S.msgBad=true;
       if(e.code==='wrong_code'){CODE='';store.del(CODE_KEY);showGate('The crew code changed. Enter the new one.');S.msg='Not saved.'}
@@ -578,7 +637,11 @@ document.getElementById('tally').addEventListener('click',e=>{const b=e.target.c
 function hoursInput(){const i=document.getElementById('hrs-'+S.open);return i?num(i.value):S.draft.hrs}
 document.getElementById('side').addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||!S.data||S.busy)return;
   const a=b.dataset.act,t=b.dataset.t||S.open,l=S.sel,c=t?types(l)[t]:null,nm=locName(l);
-  if(a==='inc'||a==='dec')stepClick(t,l,+b.dataset.k,a==='inc'?1:-1);
+  if(a==='pick'){const n=+b.dataset.n,cur=pickOf(t,l);S.pick={key:t+'|'+l,ns:cur.includes(n)?cur.filter(x=>x!==n):cur.concat(n).sort((x,y)=>x-y)};S.msg='';render()}
+  else if(a==='pickall'){S.pick={key:t+'|'+l,ns:Array.from({length:c?c.scope:0},(_,i)=>i+1)};S.msg='';render()}
+  else if(a==='pickclear'){S.pick=null;render()}
+  else if(a==='pipe')dropClick(t,l,'pipe',+b.dataset.q);
+  else if(a==='wire'||a==='term')dropClick(t,l,a,b.dataset.on==='1');
   else if(crewAct(a,b,t,c,{type:t,loc:l},nm)){}
 });
 
