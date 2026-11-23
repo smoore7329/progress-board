@@ -294,9 +294,10 @@ body{margin:0}
         <div class="legend">
           <span><i class="sw" style="background:var(--done);border-color:var(--done)"></i>Earned</span>
           <span><i class="sw" style="background:var(--ink);border-color:var(--ink)"></i>Spent (crew hours on the board)</span>
+          <span id="hv-clock-key" hidden><i class="sw" style="background:#8A5CCF;border-color:#8A5CCF"></i>Time clock (ELEC punches)</span>
           <span id="hv-plan-key" hidden><i class="sw" style="background:var(--muted);border-color:var(--muted)"></i>Planned</span>
         </div>
-        <div class="hv-chart"><canvas id="hv-burn" role="img" aria-label="Cumulative earned, spent and planned hours by week"></canvas></div>
+        <div class="hv-chart"><canvas id="hv-burn" role="img" aria-label="Cumulative earned, spent, time clock and planned hours by week"></canvas></div>
         <div class="tw"><table class="hv-tbl" id="hv-clock"><thead><tr><th>Week of</th><th>Crew hours on the board</th><th>Time clock ELEC hours</th><th>Not logged on the board</th></tr></thead><tbody></tbody></table></div>
         <p class="msg">Time clock hours are raw punch-in to punch-out for ELEC-class employees at Midway, before lunch deductions, starting the week the clock went live. Supervisors (ELSP, ELPM) aren’t included.</p>
       </section>
@@ -780,7 +781,15 @@ function renderHours(){
     P=weeks.map(wk=>{const t=Date.parse(wk)+7*864e5;return Math.round(tB*Math.min(Math.max((t-a)/(z-a),0),1))})}
   document.getElementById('hv-plan-key').hidden=!P;
   document.getElementById('hv-burn-how').textContent='Cumulative hours by week. When earned falls below spent, the job is using more hours than the finished work is worth.'+(P?'':' To add a planned line, enter start and finish dates in Supabase → Table Editor → el_plan.');
-  drawBurn(weeks,E,Sp,P);
+  // time clock line: cumulative ELEC punch hours from the week the clock went live, starting from the board's spent total
+  // before that week so it lines up with the spent line (earlier weeks only have board hours)
+  const clockWk=Object.fromEntries(H.clock.map(c=>[c.wk,c.hrs||0]));
+  const firstClock=weeks.find(wk=>clockWk[wk]!=null);
+  let Ck=null;
+  if(firstClock){let run=0;Ck=weeks.map((wk,i)=>{if(wk<firstClock)return null;if(wk===firstClock)run=i?Sp[i-1]:0;run+=clockWk[wk]||0;return Math.round(run)})}
+  document.getElementById('hv-clock-key').hidden=!Ck;
+  if(Ck)document.getElementById('hv-burn-how').textContent+=' The purple line is time clock hours for ELEC employees, starting the week the clock went live from the board’s total up to then; when it runs above spent, hours worked aren’t all being logged on the board.';
+  drawBurn(weeks,E,Sp,P,Ck);
 
   const clock=Object.fromEntries(H.clock.map(c=>[c.wk,c.hrs]));
   document.querySelector('#hv-clock tbody').innerHTML=weeks.slice().reverse().map(wk=>{const b=boardWk[wk]||0,c=clock[wk];const gap=c==null?null:c-b;
@@ -799,17 +808,18 @@ function renderHours(){
   document.getElementById('hv-method').textContent='Earned = budget hours × percent complete, where each drop counts '+Math.round(W[0]*100)+'% at conduit / pipe, '+Math.round((W[0]+W[1])*100)+'% at wire pulled and 100% at terminated. Spent = crew members × hours each, as logged on the board. Budget rows live in Supabase → Table Editor → el_budget. Updated '+new Date(H.fetchedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.';
 }
 
-function drawBurn(labels,E,Sp,P){
+function drawBurn(labels,E,Sp,P,Ck){
   if(!window.Chart)return;
   const cs=getComputedStyle(document.documentElement),col=v=>cs.getPropertyValue(v).trim();
   const ds=[
     {label:'Earned',data:E,borderColor:col('--done'),backgroundColor:col('--done'),borderWidth:2.5,pointRadius:3,tension:.15},
     {label:'Spent',data:Sp,borderColor:col('--ink'),backgroundColor:col('--ink'),borderWidth:2.5,pointRadius:3,borderDash:[6,4],tension:.15}];
+  if(Ck)ds.push({label:'Time clock',data:Ck,borderColor:'#8A5CCF',backgroundColor:'#8A5CCF',borderWidth:2.5,pointRadius:3,tension:.15,spanGaps:false});
   if(P)ds.push({label:'Planned',data:P,borderColor:col('--muted'),borderWidth:2,pointRadius:0,borderDash:[2,4]});
   if(hChart)hChart.destroy();
   hChart=new Chart(document.getElementById('hv-burn'),{type:'line',data:{labels:labels.map(wkLabel),datasets:ds},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw)+' h'}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw==null?null:c.dataset.label+': '+fmt(c.raw)+' h'}}},
       scales:{x:{grid:{display:false},ticks:{color:col('--muted')}},y:{beginAtZero:true,grid:{color:col('--line')},ticks:{color:col('--muted'),callback:v=>fmt(v)}}}}});
 }
 
