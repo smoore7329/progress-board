@@ -314,6 +314,7 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
           <span id="hv-plan-key" hidden><i class="sw" style="background:var(--muted);border-color:var(--muted)"></i>Planned</span>
         </div>
         <div class="hv-chart"><canvas id="hv-burn" role="img" aria-label="Cumulative earned, spent, time clock and planned hours by week"></canvas></div>
+        <p class="msg" id="hv-clock-note" hidden></p>
         <div class="tw"><table class="hv-tbl" id="hv-clock"><thead><tr><th>Week of</th><th>Crew hours on the board</th><th>Time clock ELEC hours</th><th>Not logged on the board</th></tr></thead><tbody></tbody></table></div>
         <p class="msg">Time clock hours are raw punch-in to punch-out for ELEC-class employees at Buckeye, before lunch deductions, starting the week the clock went live. Supervisors (ELSP, ELPM) aren’t included. Hours before the clock went live are only on the board.</p>
       </section>
@@ -751,10 +752,14 @@ function renderHours(){
   document.getElementById('hv-clock-key').hidden=!Ck;
   if(Ck)document.getElementById('hv-burn-how').textContent+=' The purple line is time clock hours for ELEC employees, starting the week the clock went live from the board’s total up to then; when it runs above spent, hours worked aren’t all being logged on the board.';
   drawBurn(weeks,E,Sp,P,Ck);
+  // manual time clock adjustments (Supabase → Table Editor → el_clock_adj)
+  const cn=(H.clockNotes||[]).filter(n=>n.adj);const cnEl=document.getElementById('hv-clock-note');
+  cnEl.hidden=!cn.length;cnEl.innerHTML=cn.length?'<b>Time clock adjusted:</b> '+cn.map(n=>'week of '+wkLabel(n.wk)+' '+(n.adj<0?'−':'+')+fmtH(Math.abs(n.adj))+' h').join(', ')+(cn.some(n=>n.note)?'. '+esc([...new Set(cn.map(n=>n.note).filter(Boolean))].join('; '))+'.':'.'):'';
 
   const clock=Object.fromEntries(H.clock.map(c=>[c.wk,c.hrs]));
+  const clockAdj=Object.fromEntries(H.clock.filter(c=>c.adj).map(c=>[c.wk,c.adj]));
   document.querySelector('#hv-clock tbody').innerHTML=weeks.slice().reverse().map(wk=>{const b=boardWk[wk]||0,c=clock[wk];const gap=c==null?null:c-b;
-    return '<tr><td>'+wkLabel(wk)+'</td><td>'+fmtH(b)+'</td><td>'+(c==null?'–':fmtH(c))+'</td><td class="'+(gap!=null&&gap>c*0.1?'tg-bad':'')+'">'+(gap==null?'–':fmtH(gap))+'</td></tr>'}).join('');
+    return '<tr><td>'+wkLabel(wk)+'</td><td>'+fmtH(b)+'</td><td>'+(c==null?'–':fmtH(c)+(clockAdj[wk]?' <small>('+(clockAdj[wk]<0?'−':'+')+fmtH(Math.abs(clockAdj[wk]))+' adj.)</small>':''))+'</td><td class="'+(gap!=null&&gap>c*0.1?'tg-bad':'')+'">'+(gap==null?'–':fmtH(gap))+'</td></tr>'}).join('');
 
   const flags=[];
   rows.forEach(r=>{
