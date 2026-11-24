@@ -621,21 +621,22 @@ svg.burn text{fill:var(--muted);font:11px var(--sans)}
     if(!first){burn.innerHTML='<div class="hint">Nothing logged yet.</div>';}
     else{
       var wk=[],w=monday(first),end=monday(S.today);while(w<=end){wk.push(w);w=addDays(w,7);}
-      var sp=[],ea=[],cum=0;
+      var sp=[],ea=[],cum=0,tc=[],tcum=0,TC=Array.isArray(B.timeclock)?B.timeclock:null;
       var mhB=mhBud('mech')+mhBud('ctrl'),rw=(B.receiving&&B.receiving.weeks)||[],tf=B.targetFinish,start='2026-10-22',pl=[];
       wk.forEach(function(m){B.weeks.forEach(function(r){if(r[0]===m)cum+=r[3];});sp.push(cum);
+        if(TC){TC.forEach(function(r){if(r[0]===m)tcum+=r[1];});tc.push(tcum);}
         var e=earnedAt(addDays(m,6)),rp=0;rw.forEach(function(r){if(r[0]<=m)rp=r[1];});
         ea.push(e.mech+e.ctrl+e.lift+mhB*rp/100);
         if(tf){var f=(Date.parse(addDays(m,6))-Date.parse(start))/(Date.parse(tf)-Date.parse(start));pl.push(A.b*Math.max(0,Math.min(1,f)));}});
-      var W=560,H=230,L=48,Bt=28,top=12,ymax=Math.max(1,Math.max.apply(null,sp.concat(ea,pl))*1.15);
+      var W=560,H=230,L=48,Bt=28,top=12,ymax=Math.max(1,Math.max.apply(null,sp.concat(ea,pl,tc))*1.15);
       var n=Math.max(wk.length-1,1);
       function X(i){return L+(W-L-12)*(wk.length===1?0.5:i/n);} function Y(v){return top+(H-top-Bt)*(1-v/ymax);}
       function line(a,c){return '<polyline fill="none" stroke="'+c+'" stroke-width="2.5" points="'+a.map(function(v,i){return X(i)+','+Y(v);}).join(' ')+'"/>'+a.map(function(v,i){return '<circle cx="'+X(i)+'" cy="'+Y(v)+'" r="3" fill="'+c+'"/>';}).join('');}
       var g='';[0,0.25,0.5,0.75,1].forEach(function(f){var v=ymax/1.15*f;g+='<line x1="'+L+'" x2="'+(W-12)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="var(--line-soft)"/><text x="'+(L-6)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+fmt(v)+'</text>';});
       wk.forEach(function(m,i){g+='<text x="'+X(i)+'" y="'+(H-8)+'" text-anchor="middle">'+m.slice(5).replace('-','/')+'</text>';});
-      burn.innerHTML='<svg class="burn" viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Cumulative spent and earned hours by week">'+g+line(sp,'var(--warn)')+line(ea,'var(--accent)')+(pl.length?'<polyline fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="6 4" points="'+pl.map(function(v,i){return X(i)+','+Y(v);}).join(' ')+'"/>':'')+'</svg>'+
-        '<div class="legend"><span><i class="sw" style="background:var(--warn)"></i>Spent (cumulative, crew + handlers)</span><span><i class="sw" style="background:var(--accent)"></i>Earned (cumulative)</span>'+(tf?'<span><i class="sw" style="border:2px dashed var(--muted);background:none"></i>Straight-line plan to '+esc(tf)+'</span>':'')+'</div>'+
-        '<div class="hint">Weeks start Monday. Budget total is '+fmt(A.b)+' h. QC passes count as of today.</div>';
+      burn.innerHTML='<svg class="burn" viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Cumulative spent and earned hours by week">'+g+(tc.length?line(tc,'#8B5CF6'):'')+line(sp,'var(--warn)')+line(ea,'var(--accent)')+(pl.length?'<polyline fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="6 4" points="'+pl.map(function(v,i){return X(i)+','+Y(v);}).join(' ')+'"/>':'')+'</svg>'+
+        '<div class="legend"><span><i class="sw" style="background:var(--warn)"></i>Spent (cumulative, crew + handlers)</span><span><i class="sw" style="background:var(--accent)"></i>Earned (cumulative)</span>'+(tc.length?'<span><i class="sw" style="background:#8B5CF6"></i>Time clock hours (cumulative)</span>':'')+(tf?'<span><i class="sw" style="border:2px dashed var(--muted);background:none"></i>Straight-line plan to '+esc(tf)+'</span>':'')+'</div>'+
+        '<div class="hint">Weeks start Monday. Budget total is '+fmt(A.b)+' h. QC passes count as of today.'+(tc.length?' Time clock = punched hours at Buckeye for MECH, MTRL and MHSU, plus CTRL through 11/16 and from 11/30; no other supervisors or night shifts.':(B.timeclock&&B.timeclock.error?' '+esc(B.timeclock.error):''))+'</div>';
     }
     // flags
     var fl=[];
