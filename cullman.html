@@ -229,6 +229,13 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
 .tg-ok{color:var(--ok)}.tg-warn{color:var(--warn-ink)}.tg-bad{color:var(--bad)}
 .flags{margin:0;padding-left:20px;font-size:13.5px}.flags li{margin:3px 0}
 .sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line)}
+.prep-ov{position:fixed;inset:0;z-index:15;background:color-mix(in srgb,var(--ink) 45%,transparent);display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) 12px 24px;overflow:auto}
+.prep-card{width:100%;max-width:460px;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.prep-card .sh{background:#0F5F5F}
+.prep-card .sb{max-height:none}
+.btn.prep{border-color:#0F8A8A;color:#0F8A8A}
+.kpi.prep{border-left:4px solid #0F8A8A}
+.tg-prep{color:#0F8A8A}
 @media (max-width:640px){.brow{grid-template-columns:70px minmax(0,1fr) 96px}.brow .k span{display:none}.hv-ratio{font-size:42px}}
 
 </style>
@@ -245,6 +252,7 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
       <span class="dot" id="dot"></span><span id="stat">Connecting…</span>
       <label class="wdl" for="wd">Work date <input type="date" id="wd"></label>
       <button class="btn" id="refresh" type="button">Refresh</button>
+      <button class="btn prep" id="prep-open" type="button">＋ Log prep</button>
       <button class="btn" id="signout" type="button">Sign out</button>
     </div>
   </div>
@@ -312,17 +320,26 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
         <p class="how" id="hv-burn-how"></p>
         <div class="legend">
           <span><i class="sw" style="background:var(--done);border-color:var(--done)"></i>Earned</span>
-          <span><i class="sw" style="background:var(--ink);border-color:var(--ink)"></i>Spent (crew hours on the board)</span>
+          <span><i class="sw" style="background:var(--ink);border-color:var(--ink)"></i>Spent (crew hours on the board, drops + prep)</span>
+          <span id="hv-clock-key" hidden><i class="sw" style="background:#8A5CCF;border-color:#8A5CCF"></i>Time clock (ELEC punches)</span>
           <span id="hv-plan-key" hidden><i class="sw" style="background:var(--muted);border-color:var(--muted)"></i>Planned</span>
         </div>
-        <div class="hv-chart"><canvas id="hv-burn" role="img" aria-label="Cumulative earned, spent and planned hours by week"></canvas></div>
-        <div class="tw"><table class="hv-tbl" id="hv-clock"><thead><tr><th>Week of</th><th>Crew hours on the board</th><th>Time clock ELEC hours</th><th>Not logged on the board</th></tr></thead><tbody></tbody></table></div>
+        <div class="hv-chart"><canvas id="hv-burn" role="img" aria-label="Cumulative earned, spent, time clock and planned hours by week"></canvas></div>
+        <p class="msg" id="hv-clock-note" hidden></p>
+        <div class="tw"><table class="hv-tbl" id="hv-clock"><thead><tr><th>Week of</th><th>Hours on the board (drops + prep)</th><th>Time clock ELEC hours</th><th>Not logged on the board</th></tr></thead><tbody></tbody></table></div>
         <p class="msg">Time clock hours are raw punch-in to punch-out for ELEC-class employees at Cullman, before lunch deductions, starting the week the clock went live. Supervisors (ELSP, ELPM) aren’t included. Hours before the clock went live are only on the board.</p>
+      </section>
+
+      <section class="hv-sec" id="hv-prep" aria-labelledby="hv-hp" hidden>
+        <h2 id="hv-hp">Prep ahead/over</h2>
+        <div class="kpis" id="hv-prep-kpis"></div>
+        <p class="how" id="hv-prep-how"></p>
+        <div class="tw"><table class="hv-tbl" id="hv-prep-tbl"><thead><tr><th>Week of</th><th>Drop hours</th><th>Prep logged</th><th>Prep allowed</th><th>Prep ahead/over</th><th>Running ahead/over</th></tr></thead><tbody></tbody></table></div>
       </section>
 
       <section class="hv-sec" aria-labelledby="hv-h3">
         <h2 id="hv-h3">Where the budget is going</h2>
-        <p class="how">Bar length is each drop type’s budget. Blue is hours earned, the black tick is hours spent. A red tick means spent has passed earned by more than 10%.</p>
+        <p class="how">Bar length is each drop type’s budget. Blue is hours earned, the black tick is hours spent (drop hours plus that drop type’s prep share). A red tick means spent has passed earned by more than 10%.</p>
         <div id="hv-bars"></div>
       </section>
 
@@ -332,6 +349,23 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
       </section>
 
       <p class="msg" id="hv-method"></p>
+    </div>
+  </div>
+</div>
+
+<div class="prep-ov" id="prep-ov" hidden role="dialog" aria-modal="true" aria-labelledby="prep-t">
+  <div class="prep-card">
+    <div class="sh"><span class="t" id="prep-t">PREP / STAGING</span><span class="m" id="prep-m">Bulk prep for many drops · not tied to a cell</span></div>
+    <div class="sb">
+      <div class="lab">Who prepped</div>
+      <div class="crew" id="prep-crew"></div>
+      <div class="hrs"><label for="prep-hrs">Hours each</label><input id="prep-hrs" type="number" inputmode="decimal" min="0" max="24" step="0.5" value="8"></div>
+      <div class="gtot"><span id="prep-sum">Pick who prepped</span><span id="prep-tot"></span></div>
+      <div class="acts"><button class="btn primary" id="prep-save" type="button">Save prep</button><button class="btn" id="prep-close" type="button">Close</button></div>
+      <p class="msg" id="prep-msg" role="status"></p>
+      <div class="lab" style="margin-top:6px" id="prep-dayh">Prep logged</div>
+      <div class="groups" id="prep-list"></div>
+      <p class="msg">Prep isn't charged to one cell. Every drop hour carries a set share for prep (see Hours vs budget); prep logged above or below that shows as <b>Prep ahead/over</b>.</p>
     </div>
   </div>
 </div>
@@ -427,7 +461,9 @@ function renderKpis(){
     ['Man-hours to date',has?r1(mh):'—',has?r1(mhDay)+' MH '+dayWord():''],
     ['MH per finished drop',has&&d?r1(mh/d):'—',has?(d?'all drop types · partial steps count':'no drops started yet'):''],
     ['Drops done '+dayWord(),has?(dropsDay>0?'+':'')+fmt(r1(dropsDay)):'—','step credit moved on the board']];
-  document.getElementById('kpis').innerHTML=k.map(x=>'<div class="kpi"><span class="l">'+esc(x[0])+'</span><span class="v">'+esc(x[1])+'</span><span class="s">'+esc(x[2])+'</span></div>').join('');
+  if(PREP.data){const t=PREP.data.toDate,ao=t.aheadOver;
+    k.push(['Prep '+dayWord(),r1(PREP.data.dayMh)+' MH','Prep ahead/over to date: '+(ao>0?'+':'')+r1(ao)+' h','prep'])}
+  document.getElementById('kpis').innerHTML=k.map(x=>'<div class="kpi'+(x[3]?' '+x[3]:'')+'"><span class="l">'+esc(x[0])+'</span><span class="v">'+esc(x[1])+'</span><span class="s">'+esc(x[2])+'</span></div>').join('');
 }
 let sideLoc=null;
 const pickOf=(t,l)=>(S.pick&&S.pick.key===t+'|'+l)?S.pick.ns:[];
@@ -555,7 +591,11 @@ function demoHours(){
   DB.entries.forEach(e=>{const m=e.crew.length*e.hrs;mh[e.type]=(mh[e.type]||0)+m;
     const dt=new Date(e.date+'T12:00:00');dt.setDate(dt.getDate()-((dt.getDay()+6)%7));const wk=dt.toISOString().slice(0,10),k=wk+'|'+e.type;
     const w=weekly[k]=weekly[k]||{wk,drop_type:e.type,mh:0,d1:0,d2:0,d3:0};w.mh+=m;w.d1+=(e.dq||0)/4;w.d2+=e.d[1];w.d3+=e.d[2]});
-  return {weights:W,cells:Object.values(cells),mh:Object.entries(mh).map(([drop_type,v])=>({drop_type,mh:v})),budget:DEMO_BUDGET.map(b=>Object.assign({description:DESC[b.drop_type]},b)),weekly:Object.values(weekly),clock:[],plan:null};
+  return {weights:W,cells:Object.values(cells),mh:Object.entries(mh).map(([drop_type,v])=>({drop_type,mh:v})),budget:DEMO_BUDGET.map(b=>Object.assign({description:DESC[b.drop_type]},b)),weekly:Object.values(weekly),clock:[],clockNotes:[],plan:null,prep:(()=>{
+    const wkOf=d=>{const dt=new Date(d+'T12:00:00');dt.setDate(dt.getDate()-((dt.getDay()+6)%7));return dt.toISOString().slice(0,10)};
+    const lg={},dw={},dt={};DB.prep.forEach(e=>{const k=wkOf(e.date);lg[k]=(lg[k]||0)+e.crew.length*e.hrs});
+    DB.entries.filter(e=>e.date>=PREP_START).forEach(e=>{const m=e.crew.length*e.hrs,k=wkOf(e.date);dw[k]=(dw[k]||0)+m;dt[e.type]=(dt[e.type]||0)+m});
+    return {pct:PREP_PCT,start:PREP_START,logged:Object.entries(lg).map(([wk,mh])=>({wk,mh})),dropWk:Object.entries(dw).map(([wk,mh])=>({wk,mh})),dropType:Object.entries(dt).map(([drop_type,mh])=>({drop_type,mh}))}})()};
 }
 function apply(d){S.data=d;S.date=d.date;S.stamp=Date.parse(d.fetchedAt)||Date.now();S.err=null;
   const wd=document.getElementById('wd');wd.max=d.today;wd.value=d.date;
@@ -596,7 +636,7 @@ async function load(){
     else if(e instanceof TypeError)S.err='can’t reach the board’s server. Check the connection; the board keeps the last numbers it had.';
     else S.err=e.message;
   }
-  loading=false;render();
+  loading=false;render();loadPrep();
 }
 setInterval(()=>{if(document.visibilityState==='visible'&&!S.busy&&!S.open&&!stepsPending)load()},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!S.open&&!stepsPending)load()});
@@ -691,6 +731,59 @@ document.getElementById('side').addEventListener('click',e=>{const b=e.target.cl
 });
 
 
+// ---------- Prep / staging (proof of concept) ----------
+// Bulk prep hours not tied to a cell. Demo: kept in this page only (the live Buckeye board saves to buckeye-prep-api / el2_prep).
+const PREP={data:null,pick:[],busy:false};
+const PREP_PCT=0.05,PREP_START=(()=>{const d=new Date(todayISO()+'T12:00:00');d.setDate(d.getDate()-60);return d.toISOString().slice(0,10)})();
+DB.prep=[];let prepId=0;
+async function prepApi(action,extra){
+  extra=extra||{};const date=S.date||todayISO();await new Promise(r=>setTimeout(r,60));
+  if(action==='add'){if(!extra.crew||!extra.crew.length)throw dErr('bad_input','Pick at least one person.');DB.prep.push({id:++prepId,date,crew:[...new Set(extra.crew)],hrs:Number(extra.hrs),by:NAME})}
+  else if(action==='delete'){DB.prep=DB.prep.filter(e=>e.id!==extra.id)}
+  const day=DB.prep.filter(e=>e.date===date),prep=DB.prep.reduce((x,e)=>x+e.crew.length*e.hrs,0);
+  const drops=DB.entries.filter(e=>e.date>=PREP_START).reduce((x,e)=>x+e.crew.length*e.hrs,0),allowed=drops*PREP_PCT;
+  return {date,today:todayISO(),entries:day.map(e=>({id:e.id,crew:e.crew,hrs:e.hrs,mh:e.crew.length*e.hrs,by:e.by})),dayMh:day.reduce((x,e)=>x+e.crew.length*e.hrs,0),
+    toDate:{prep,drops,pct:PREP_PCT,allowed,aheadOver:prep-allowed}};
+}
+async function loadPrep(){
+  if(!CODE||!NAME)return;
+  try{PREP.data=await prepApi('read');renderKpis();if(!document.getElementById('prep-ov').hidden)renderPrep()}catch(e){/* board still works without prep */}
+}
+function renderPrep(){
+  const names=(S.data&&S.data.crewNames)||[];
+  document.getElementById('prep-m').textContent='Bulk prep for many drops · '+dayWord();
+  document.getElementById('prep-crew').innerHTML=names.map(n=>'<button type="button" class="cr'+(PREP.pick.includes(n)?' on':'')+'" data-n="'+esc(n)+'" aria-pressed="'+PREP.pick.includes(n)+'">'+esc(n)+'</button>').join('')||'<span class="msg">No crew list yet.</span>';
+  const h=num(document.getElementById('prep-hrs').value),c=PREP.pick.length;
+  document.getElementById('prep-sum').textContent=c?c+(c>1?' people':' person')+' × '+r1(h)+' h':'Pick who prepped';
+  document.getElementById('prep-tot').textContent=c&&h>0?r1(c*h)+' prep h':'';
+  document.getElementById('prep-save').disabled=PREP.busy||!c||!(h>0);
+  const d=PREP.data;
+  document.getElementById('prep-dayh').textContent='Prep logged '+dayWord()+(d?' · '+r1(d.dayMh)+' MH':'');
+  document.getElementById('prep-list').innerHTML=d&&d.entries.length?d.entries.map(e=>
+    '<div class="grp" style="--gc:#0F8A8A"><div class="who"><b>'+e.crew.length+' × '+r1(e.hrs)+' h = '+r1(e.mh)+' h</b>'+esc(e.crew.join(', '))+(e.by?' <span class="msg">· '+esc(e.by)+'</span>':'')+'</div><button class="btn sm" type="button" data-del="'+e.id+'">Remove</button></div>').join(''):'<p class="msg">None yet.</p>';
+}
+function openPrep(){if(!S.data)return;PREP.pick=[];document.getElementById('prep-msg').textContent='';document.getElementById('prep-ov').hidden=false;renderPrep();loadPrep();setTimeout(()=>document.getElementById('prep-close').focus(),30)}
+function closePrep(){document.getElementById('prep-ov').hidden=true;document.getElementById('prep-open').focus()}
+document.getElementById('prep-open').addEventListener('click',openPrep);
+document.getElementById('prep-close').addEventListener('click',closePrep);
+document.getElementById('prep-ov').addEventListener('click',e=>{if(e.target.id==='prep-ov')closePrep()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.getElementById('prep-ov').hidden)closePrep()});
+document.getElementById('prep-hrs').addEventListener('input',renderPrep);
+document.getElementById('prep-crew').addEventListener('click',e=>{const b=e.target.closest('[data-n]');if(!b)return;const n=b.dataset.n;
+  PREP.pick=PREP.pick.includes(n)?PREP.pick.filter(x=>x!==n):PREP.pick.concat(n);renderPrep()});
+document.getElementById('prep-save').addEventListener('click',async()=>{
+  const h=num(document.getElementById('prep-hrs').value),m=document.getElementById('prep-msg');
+  if(!PREP.pick.length||!(h>0)||PREP.busy)return;PREP.busy=true;m.className='msg';m.textContent='Saving…';renderPrep();
+  try{PREP.data=await prepApi('add',{crew:PREP.pick,hrs:h});m.textContent='Saved '+r1(PREP.pick.length*h)+' prep hours.';PREP.pick=[]}
+  catch(e){m.className='msg bad';m.textContent='Not saved: '+e.message}
+  PREP.busy=false;renderPrep();renderKpis();if(H)loadHours();
+});
+document.getElementById('prep-list').addEventListener('click',async e=>{const b=e.target.closest('[data-del]');if(!b||PREP.busy)return;
+  const m=document.getElementById('prep-msg');PREP.busy=true;m.className='msg';m.textContent='Removing…';
+  try{PREP.data=await prepApi('delete',{id:+b.dataset.del});m.textContent='Removed.'}catch(e2){m.className='msg bad';m.textContent=e2.message}
+  PREP.busy=false;renderPrep();renderKpis();if(H)loadHours();
+});
+
 // ---------- Hours vs budget tab ----------
 // Budget from el_budget (the Buckeye SOW: hours are the SOW row totals; percent complete uses the board's drop counts), progress and crew hours from this board, raw ELEC punches from the time clock.
 // Budget rows: Supabase → Table Editor → el_budget. Planned line: start/finish dates in el_plan.
@@ -743,17 +836,21 @@ function renderHours(){
   const W=H.weights;
   const cells=Object.fromEntries(H.cells.map(c=>[c.drop_type,c]));
   const mh=Object.fromEntries(H.mh.map(m=>[m.drop_type,m.mh||0]));
+  // prep (proof of concept): each drop type carries PCT of its drop hours since the prep start date; the rest is Prep ahead/over
+  const PP=H.prep||null,PCT=PP?PP.pct:0;
+  const allow=PP?Object.fromEntries(PP.dropType.map(d=>[d.drop_type,(d.mh||0)*PCT])):{};
+  const prepLogged=PP?PP.logged.reduce((x,w)=>x+(w.mh||0),0):0,prepAllowed=Object.values(allow).reduce((x,v)=>x+v,0),prepAO=prepLogged-prepAllowed;
   const rows=H.budget.map(b=>{
     const c=cells[b.drop_type],scope=c?c.scope:0;
     const pct=c&&scope?(W[0]*c.s1+W[1]*c.s2+W[2]*c.s3)/scope:0;
-    const spent=mh[b.drop_type]||0,earned=b.budget*pct;
-    return Object.assign({},b,{desc:DESC[b.drop_type]||b.description||'',scope,onBoard:!!c,pct,spent,earned,ratio:spent>0?earned/spent:null});
+    const drops=mh[b.drop_type]||0,prepA=allow[b.drop_type]||0,spent=drops+prepA,earned=b.budget*pct;
+    return Object.assign({},b,{desc:DESC[b.drop_type]||b.description||'',scope,onBoard:!!c,pct,drops,prepA,spent,earned,ratio:spent>0?earned/spent:null});
   }).sort((a,b)=>b.budget-a.budget);
   const byType=Object.fromEntries(rows.map(r=>[r.drop_type,r]));
-  const tB=rows.reduce((s,r)=>s+r.budget,0),tE=rows.reduce((s,r)=>s+r.earned,0),tS=H.mh.reduce((s,m)=>s+(m.mh||0),0);
+  const tB=rows.reduce((s,r)=>s+r.budget,0),tE=rows.reduce((s,r)=>s+r.earned,0),tS=H.mh.reduce((s,m)=>s+(m.mh||0),0)+prepLogged;
   const tR=tS>0?tE/tS:null,done=tB?tE/tB:0;
 
-  document.getElementById('hv-lede').innerHTML='Electrical has earned <b>'+fmtH(tE)+'</b> of its <b>'+fmtH(tB)+'</b> budgeted hours and spent <b>'+fmtH(tS)+'</b> crew hours getting there.';
+  document.getElementById('hv-lede').innerHTML='Electrical has earned <b>'+fmtH(tE)+'</b> of its <b>'+fmtH(tB)+'</b> budgeted hours and spent <b>'+fmtH(tS)+'</b> crew hours getting there'+(prepLogged?' (including '+fmtH(prepLogged)+' prep hours)':'')+'.';
   const ratioEl=document.getElementById('hv-ratio');ratioEl.textContent=tR==null?'–':r2(tR);ratioEl.className='hv-ratio '+toneTxt(tR);
   document.getElementById('hv-note').innerHTML=tR==null?'No crew hours logged yet.':
     'Earned ÷ spent. '+(tR>=1?'At or above 1.00, the work is coming in at or under budget.':'Below 1.00 means each hour spent is buying less than an hour of budgeted work.')+
@@ -769,13 +866,18 @@ function renderHours(){
     const over=r.spent>0&&r.ratio<0.9;
     const tick=r.spent>0?'<div class="act'+(over?' over':'')+'" style="left:'+Math.min(r.spent/r.budget*100,100)+'%"></div>':'';
     const rt=r.spent>0?'<b class="'+toneTxt(r.ratio)+'">'+r2(r.ratio)+'</b>':'–';
-    return '<div class="brow"><div class="k"><b>'+esc(r.drop_type)+'</b><span>'+fmtH(r.budget)+' h</span></div><div style="width:'+(r.budget/max*100)+'%;min-width:24px"><div class="trk"><div class="ern" style="width:'+(r.pct*100)+'%"></div>'+tick+'</div></div><div class="v">'+fmtH(r.earned)+' / '+fmtH(r.spent)+' h · '+rt+'</div></div>'}).join('');
+    return '<div class="brow"><div class="k"><b>'+esc(r.drop_type)+'</b><span>'+fmtH(r.budget)+' h</span></div><div style="width:'+(r.budget/max*100)+'%;min-width:24px"><div class="trk"><div class="ern" style="width:'+(r.pct*100)+'%"></div>'+tick+'</div></div><div class="v">'+fmtH(r.earned)+' / '+fmtH(r.spent)+' h · '+rt+(r.prepA>=0.5?'<br><small>'+fmtH(r.drops)+' drops + <span class="tg-prep">'+fmtH(r.prepA)+' prep</span></small>':'')+'</div></div>'}).join('')+
+    (PP&&(prepLogged||prepAllowed)?'<div class="brow" style="border-top:2px solid var(--grid)"><div class="k"><b class="'+(prepAO>0.5?'tg-bad':'tg-ok')+'">Prep ahead/over</b></div><div class="msg">'+fmtH(prepLogged)+' prep logged − '+fmtH(prepAllowed)+' charged to drop types ('+Math.round(PCT*100)+'% of their drop hours)</div><div class="v"><b class="'+(prepAO>0.5?'tg-bad':'tg-ok')+'">'+(prepAO>0?'+':'')+fmtH(prepAO)+' h</b></div></div>':'');
 
   // weekly cumulative earned and spent
   const weeks=[...new Set([...H.weekly.map(w=>w.wk),...H.clock.map(c=>c.wk)])].sort();
   let cE=0,cS=0;const E=[],Sp=[],boardWk={};
+  const prepWk=PP?Object.fromEntries(PP.logged.map(w=>[w.wk,w.mh||0])):{};
+  if(PP)PP.logged.forEach(w=>{if(!weeks.includes(w.wk))weeks.push(w.wk)});weeks.sort();
   weeks.forEach(wk=>{H.weekly.filter(x=>x.wk===wk).forEach(w=>{const b=byType[w.drop_type];cS+=w.mh||0;boardWk[wk]=(boardWk[wk]||0)+(w.mh||0);
-    if(b&&b.scope)cE+=(b.budget/b.scope)*(W[0]*w.d1+W[1]*w.d2+W[2]*w.d3)});E.push(Math.round(cE));Sp.push(Math.round(cS))});
+    if(b&&b.scope)cE+=(b.budget/b.scope)*(W[0]*w.d1+W[1]*w.d2+W[2]*w.d3)});
+    if(prepWk[wk]){cS+=prepWk[wk];boardWk[wk]=(boardWk[wk]||0)+prepWk[wk]}
+    E.push(Math.round(cE));Sp.push(Math.round(cS))});
   // Progress carried over from Master Power drops (before the board kept daily step moves) has no week; count it in the first week.
   const pre=Math.max(0,tE-cE);if(pre>=0.5&&E.length)for(let i=0;i<E.length;i++)E[i]+=Math.round(pre);
   let P=null;
@@ -783,11 +885,39 @@ function renderHours(){
     P=weeks.map(wk=>{const t=Date.parse(wk)+7*864e5;return Math.round(tB*Math.min(Math.max((t-a)/(z-a),0),1))})}
   document.getElementById('hv-plan-key').hidden=!P;
   document.getElementById('hv-burn-how').textContent='Cumulative hours by week. When earned falls below spent, the job is using more hours than the finished work is worth.'+(pre>=0.5?' '+fmtH(pre)+' earned hours come from progress recorded before the board kept daily steps, so they’re counted in the first week.':'')+(P?'':' To add a planned line, enter start and finish dates in Supabase → Table Editor → el_plan.');
-  drawBurn(weeks,E,Sp,P);
+  // time clock line: cumulative ELEC punch hours from the week the clock went live, starting from the board's spent total
+  // before that week so it lines up with the spent line (earlier weeks only have board hours)
+  const clockWk=Object.fromEntries(H.clock.map(c=>[c.wk,c.hrs||0]));
+  const firstClock=weeks.find(wk=>clockWk[wk]!=null);
+  let Ck=null;
+  if(firstClock){let run=0;Ck=weeks.map((wk,i)=>{if(wk<firstClock)return null;if(wk===firstClock)run=i?Sp[i-1]:0;run+=clockWk[wk]||0;return Math.round(run)})}
+  document.getElementById('hv-clock-key').hidden=!Ck;
+  if(Ck)document.getElementById('hv-burn-how').textContent+=' The purple line is time clock hours for ELEC employees, starting the week the clock went live from the board’s total up to then; when it runs above spent, hours worked aren’t all being logged on the board.';
+  drawBurn(weeks,E,Sp,P,Ck);
+  // prep ahead/over section
+  const hp=document.getElementById('hv-prep');hp.hidden=!PP;
+  if(PP){
+    const aoC=prepAO>0.5?'tg-bad':'tg-ok';
+    document.getElementById('hv-prep-kpis').innerHTML=
+      '<div class="kpi prep"><span class="l">Prep allowance</span><span class="v">'+Math.round(PCT*1000)/10+'%</span><span class="s">of drop hours since '+wkLabel(PP.start)+'</span></div>'+
+      '<div class="kpi"><span class="l">Prep logged</span><span class="v">'+fmtH(prepLogged)+' h</span><span class="s">helpers, not tied to a cell</span></div>'+
+      '<div class="kpi"><span class="l">Charged to drop types</span><span class="v">'+fmtH(prepAllowed)+' h</span><span class="s">'+Math.round(PCT*1000)/10+'% × '+fmtH(PP.dropType.reduce((x,d)=>x+(d.mh||0),0))+' drop h</span></div>'+
+      '<div class="kpi" style="border-left:4px solid var(--'+(prepAO>0.5?'bad':'ok')+')"><span class="l">Prep ahead/over</span><span class="v '+aoC+'">'+(prepAO>0?'+':'')+fmtH(prepAO)+' h</span><span class="s">'+(prepAO>0.5?'prepped ahead of install, or over the allowance':prepAO<-0.5?'under the allowance':'even')+'</span></div>';
+    document.getElementById('hv-prep-how').textContent='Each drop type carries '+Math.round(PCT*1000)/10+'% of its drop hours for prep; that share is set when the hours are logged and doesn’t move later. Prep logged above that sits in Prep ahead/over: it goes up when helpers prep or stage ahead and comes back down as crews work drops. If it keeps climbing once all drop types are underway, the allowance is too low. Allowance and start date: Supabase → Table Editor → el_plan (prep_pct, prep_start).';
+    const dw=Object.fromEntries(PP.dropWk.map(w=>[w.wk,w.mh||0]));
+    const pw=[...new Set([...PP.dropWk.map(w=>w.wk),...PP.logged.map(w=>w.wk)])].sort();let run=0;
+    const tr=pw.map(wk=>{const d=dw[wk]||0,l=prepWk[wk]||0,a=d*PCT,ao=l-a;run+=ao;
+      return '<tr><td>'+wkLabel(wk)+'</td><td>'+fmtH(d)+'</td><td class="tg-prep">'+fmtH(l)+'</td><td>'+fmtH(a)+'</td><td class="'+(ao>0.5?'tg-bad':'tg-ok')+'">'+(ao>0?'+':'')+fmtH(ao)+'</td><td class="'+(run>0.5?'tg-bad':'tg-ok')+'">'+(run>0?'+':'')+fmtH(run)+'</td></tr>'});
+    document.querySelector('#hv-prep-tbl tbody').innerHTML=tr.reverse().join('')||'<tr><td colspan="6" style="text-align:left">Nothing logged since '+wkLabel(PP.start)+' yet.</td></tr>';
+  }
+  // manual time clock adjustments (Supabase → Table Editor → el_clock_adj)
+  const cn=(H.clockNotes||[]).filter(n=>n.adj);const cnEl=document.getElementById('hv-clock-note');
+  cnEl.hidden=!cn.length;cnEl.innerHTML=cn.length?'<b>Time clock adjusted:</b> '+cn.map(n=>'week of '+wkLabel(n.wk)+' '+(n.adj<0?'−':'+')+fmtH(Math.abs(n.adj))+' h').join(', ')+(cn.some(n=>n.note)?'. '+esc([...new Set(cn.map(n=>n.note).filter(Boolean))].join('; '))+'.':'.'):'';
 
   const clock=Object.fromEntries(H.clock.map(c=>[c.wk,c.hrs]));
+  const clockAdj=Object.fromEntries(H.clock.filter(c=>c.adj).map(c=>[c.wk,c.adj]));
   document.querySelector('#hv-clock tbody').innerHTML=weeks.slice().reverse().map(wk=>{const b=boardWk[wk]||0,c=clock[wk];const gap=c==null?null:c-b;
-    return '<tr><td>'+wkLabel(wk)+'</td><td>'+fmtH(b)+'</td><td>'+(c==null?'–':fmtH(c))+'</td><td class="'+(gap!=null&&gap>c*0.1?'tg-bad':'')+'">'+(gap==null?'–':fmtH(gap))+'</td></tr>'}).join('');
+    return '<tr><td>'+wkLabel(wk)+'</td><td>'+fmtH(b)+'</td><td>'+(c==null?'–':fmtH(c)+(clockAdj[wk]?' <small>('+(clockAdj[wk]<0?'−':'+')+fmtH(Math.abs(clockAdj[wk]))+' adj.)</small>':''))+'</td><td class="'+(gap!=null&&gap>c*0.1?'tg-bad':'')+'">'+(gap==null?'–':fmtH(gap))+'</td></tr>'}).join('');
 
   const flags=[];
   rows.forEach(r=>{
@@ -799,20 +929,21 @@ function renderHours(){
   if(clockTot-boardSince>40)flags.push('Since the time clock went live, ELEC punches total '+fmtH(clockTot)+' hours but the board has '+fmtH(boardSince)+'. The difference isn’t in the earned-vs-spent numbers above.');
   document.getElementById('hv-flags').innerHTML=flags.length?flags.map(f=>'<li>'+f+'</li>').join(''):'<li>Nothing to sort out.</li>';
 
-  document.getElementById('hv-method').textContent='Earned = budget hours × percent complete, where each drop counts '+Math.round(W[0]*100)+'% at conduit / pipe, '+Math.round((W[0]+W[1])*100)+'% at wire pulled and 100% at terminated. Spent = crew members × hours each, as logged on the board. Budget = Buckeye SOW hours per drop × Cullman’s drop count (Cullman’s own contract numbers weren’t reliable). Budget rows live in Supabase → Table Editor → el_budget. Updated '+new Date(H.fetchedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.';
+  document.getElementById('hv-method').textContent='Earned = budget hours × percent complete, where each drop counts '+Math.round(W[0]*100)+'% at conduit / pipe, '+Math.round((W[0]+W[1])*100)+'% at wire pulled and 100% at terminated. Spent = crew members × hours each, as logged on the board'+(PP?', plus prep hours (each drop type carries '+Math.round(PCT*1000)/10+'% of its drop hours since '+wkLabel(PP.start)+'; the rest is Prep ahead/over)':'')+'. Budget = Buckeye SOW hours per drop × Cullman’s drop count (Cullman’s own contract numbers weren’t reliable). Budget rows live in Supabase → Table Editor → el_budget. Updated '+new Date(H.fetchedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.';
 }
 
-function drawBurn(labels,E,Sp,P){
+function drawBurn(labels,E,Sp,P,Ck){
   if(!window.Chart)return;
   const cs=getComputedStyle(document.documentElement),col=v=>cs.getPropertyValue(v).trim();
   const ds=[
     {label:'Earned',data:E,borderColor:col('--done'),backgroundColor:col('--done'),borderWidth:2.5,pointRadius:3,tension:.15},
     {label:'Spent',data:Sp,borderColor:col('--ink'),backgroundColor:col('--ink'),borderWidth:2.5,pointRadius:3,borderDash:[6,4],tension:.15}];
+  if(Ck)ds.push({label:'Time clock',data:Ck,borderColor:'#8A5CCF',backgroundColor:'#8A5CCF',borderWidth:2.5,pointRadius:3,tension:.15,spanGaps:false});
   if(P)ds.push({label:'Planned',data:P,borderColor:col('--muted'),borderWidth:2,pointRadius:0,borderDash:[2,4]});
   if(hChart)hChart.destroy();
   hChart=new Chart(document.getElementById('hv-burn'),{type:'line',data:{labels:labels.map(wkLabel),datasets:ds},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtH(c.raw)+' h'}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw==null?null:c.dataset.label+': '+fmtH(c.raw)+' h'}}},
       scales:{x:{grid:{display:false},ticks:{color:col('--muted')}},y:{beginAtZero:true,grid:{color:col('--line')},ticks:{color:col('--muted'),callback:v=>fmtH(v)}}}}});
 }
 
