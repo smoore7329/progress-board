@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Cullman Electrical Board (demo)</title>
+<title>Cullman Electrical Board</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: drawing 250-04734 Rev F. Number lines 27→14 across the top, letter lines A–Q down the side.
-   Cullman demo: aisle bays, cells and IDFs in their print bays (drawing 250-22204 Rev B). */
+   Cullman: aisle bays, cells and IDFs in their print bays (drawing 250-22204 Rev B). */
 :root{
   --bg:#F2F3F0; --panel:#FFFFFF; --ink:#1B1F23; --muted:#59606A; --line:#D9DCD5; --grid:#1B1F23;
   --hatch:#E8EAE5; --done:#1F6FB2; --done-soft:#E1ECF7; --part:#C27C0A; --part-soft:#FFF3DC;
@@ -245,8 +245,8 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
   <div class="top">
     <div>
       <div class="eyebrow">Walmart Cullman AL · Phase 3 · Power drops</div>
-      <h1>Cullman Electrical Board <span class="demo-tag">DEMO · nothing saves · refresh resets</span></h1>
-      <p class="sub">Laid out like drawing 250-22204 Rev B. Each card is a cell, aisle bay or IDF in its bay on the print; each square is one drop. This demo works like the live board but keeps everything in the page only. Click a card to work it.</p>
+      <h1>Cullman Electrical Board</h1>
+      <p class="sub">Laid out like drawing 250-22204 Rev B. Each card is a cell, aisle bay or IDF in its bay on the print; each square is one drop. Done counts and crew hours are saved here. Click a card to work it.</p>
     </div>
     <div class="status" aria-live="polite">
       <span class="dot" id="dot"></span><span id="stat">Connecting…</span>
@@ -334,6 +334,7 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
         <h2 id="hv-hp">Prep ahead/over</h2>
         <div class="kpis" id="hv-prep-kpis"></div>
         <p class="how" id="hv-prep-how"></p>
+        <div class="tw"><table class="hv-tbl" id="hv-prep-types"><thead><tr><th>Drop type</th><th>Prep tagged</th><th>Charged to it</th><th>Prep ahead/over</th></tr></thead><tbody></tbody></table></div>
         <div class="tw"><table class="hv-tbl" id="hv-prep-tbl"><thead><tr><th>Week of</th><th>Drop hours</th><th>Prep logged</th><th>Prep allowed</th><th>Prep ahead/over</th><th>Running ahead/over</th></tr></thead><tbody></tbody></table></div>
       </section>
 
@@ -360,6 +361,9 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
       <div class="lab">Who prepped</div>
       <div class="crew" id="prep-crew"></div>
       <div class="hrs"><label for="prep-hrs">Hours each</label><input id="prep-hrs" type="number" inputmode="decimal" min="0" max="24" step="0.5" value="8"></div>
+      <div class="lab">For which drop types <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional · pick all that apply)</span></div>
+      <div class="crew" id="prep-types"></div>
+      <p class="msg" id="prep-tnote" style="margin:0"></p>
       <div class="gtot"><span id="prep-sum">Pick who prepped</span><span id="prep-tot"></span></div>
       <div class="acts"><button class="btn primary" id="prep-save" type="button">Save prep</button><button class="btn" id="prep-close" type="button">Close</button></div>
       <p class="msg" id="prep-msg" role="status"></p>
@@ -387,7 +391,11 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
 <script>
 (function(){
 'use strict';
-const CONFIG={}; // demo: no server
+const CONFIG={
+  url:'https://vbfspyruvaoqmhuutphl.supabase.co/functions/v1/cullman-electric-api',
+  hoursUrl:'https://vbfspyruvaoqmhuutphl.supabase.co/functions/v1/electric-hours-api',
+  key:'sb_publishable_X6AsZvhKdglY2PBYvyb-aw_1vnfYbe3' // publishable key: safe to be public
+};
 const STEPS=['Conduit / pipe','Wire pulled','Terminated'],STEP_PCT=[65,30,5];
 const DESC={"A2": "Product 5 mastless lift drive/ctrl", "B1": "Product lift ctrl (UPS)", "C": "DVR monitor", "D": "Bot charging system", "FL5": "FLIB UPS connection", "FL6": "FLIB standard power", "FL7": "XIB PDP cabinet", "H": "Maint. areas, laptops, accessories", "K1": "Safety aisle access (UPS)", "L": "Safety aisle gate", "L1": "Safety driveway gate (UPS)", "M": "Network IDF switch (UPS)", "N": "Network IDF air cond", "P": "Adapter cell network/PLC (UPS)", "R1": "Inbound MAN (MCP001)", "S2": "Inbound cell singulator (PDP001)", "T2": "Inbound cell (PDP002)", "V": "Inbound cell standard power", "W1": "Outbound cell lower level (PDP001)", "XX": "Aisle/driveway lighting", "Y2": "Outbound empty pallet conveyor", "Z": "Outbound standard power"};
 const ORDER=Object.keys(DESC);
@@ -504,7 +512,7 @@ function renderSide(){
     h+=crewBlock(c,k,locName(l),S.data.crewNames);
     h+='</div>';});
   if(S.msg)h+='<div class="msg'+(S.msgBad?' bad':'')+'" role="status">'+esc(S.msg)+'</div>';
-  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">This is a demo: nothing leaves this page. On the live board every save writes a row to <b>Cullman Electrical Manhours Log</b> in Smartsheet and the step counts copy to <b>Cullman Electric</b>.</div></details>';
+  h+='<details><summary>Where this is saved</summary><div class="msg" style="margin-top:6px">The board is the record: every save is kept here. Copies to Smartsheet (a <b>Cullman Electrical Manhours Log</b> row per day, cell, drop type and crew group, and each cell’s % to its Power drops row in the tracker) aren’t connected yet; once they are, everything saved so far is copied over.</div></details>';
   h+='</div>';el.innerHTML=h;
   const sb=el.querySelector('.sb');if(sb&&keep)sb.scrollTop=keep;
 }
@@ -534,68 +542,14 @@ function render(){renderStatus();renderKpis();renderGrid();renderSide();renderTa
 
 // ---------- server ----------
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
-const CODE_KEY='cullmanDemoCode',NAME_KEY='cullmanDemoName';
-let CODE='demo',NAME=store.get(NAME_KEY)||'Demo user';
-// ---------- DEMO server: everything lives in this page ----------
-const DEMO_SCOPE={"334": {"A2": 2, "B1": 2, "C": 2, "D": 4, "H": 1, "L1": 1, "P": 1, "W1": 1, "Y2": 1, "Z": 10}, "333": {"A2": 2, "B1": 2, "C": 2, "D": 4, "H": 1, "L1": 1, "P": 1, "W1": 1, "Y2": 1, "Z": 10}, "332": {"A2": 1, "B1": 1, "C": 1, "D": 2, "H": 1, "L1": 1, "P": 1, "S2": 1, "T2": 1, "V": 9}, "331": {"A2": 1, "B1": 1, "C": 1, "D": 2, "H": 1, "L1": 1, "P": 1, "S2": 1, "T2": 1, "V": 9}, "330": {"A2": 2, "B1": 2, "C": 2, "D": 4, "H": 1, "L1": 1, "P": 1, "W1": 1, "Y2": 1, "Z": 10}, "329": {"A2": 2, "B1": 2, "C": 2, "D": 4, "H": 1, "L1": 1, "P": 1, "W1": 1, "Y2": 1, "Z": 10}, "328": {"A2": 1, "B1": 1, "C": 2, "D": 2, "FL5": 1, "FL6": 3, "FL7": 2, "H": 1, "L1": 1}, "327": {"A2": 1, "B1": 1, "C": 2, "D": 2, "FL5": 1, "FL6": 3, "FL7": 2, "H": 1, "L1": 1}, "326": {"A2": 2, "B1": 2, "C": 2, "D": 4, "H": 1, "L1": 1, "P": 1, "W1": 1, "Y2": 1, "Z": 10}, "325": {"A2": 2, "B1": 2, "C": 2, "D": 4, "H": 1, "L1": 1, "P": 1, "W1": 1, "Y2": 1, "Z": 10}, "MIB324": {"H": 1, "P": 1, "R1": 1, "V": 2}, "324": {"A2": 1, "B1": 1, "C": 1, "D": 2, "H": 1, "L1": 1, "P": 1, "S2": 1, "T2": 1, "V": 9}, "323": {"A2": 1, "B1": 1, "C": 1, "D": 2, "H": 1, "L1": 1, "P": 1, "S2": 1, "T2": 1, "V": 9}, "8-9": {"L": 2}, "9-10": {"L": 1}, "10-11": {"L": 2}, "11-12": {"H": 3, "L": 2, "XX": 2}, "12-13": {"H": 1, "K1": 1, "L": 1, "XX": 2}, "13-14": {"H": 1, "L": 2, "XX": 1}, "14-15": {"H": 1, "L": 2, "XX": 1}, "15-16": {"H": 1, "L": 1, "XX": 1}, "16-17": {"H": 2, "K1": 3, "L": 2, "XX": 2}, "17-18": {"H": 1, "L": 2, "XX": 1}, "18-19": {"H": 1, "L": 1, "XX": 1}, "IDF301": {"M": 2, "N": 1}, "IDF302": {"M": 2, "N": 1}, "IDF303": {"M": 2, "N": 1}, "IDF304": {"M": 2, "N": 1}, "IDF305": {"M": 2, "N": 1}, "IDF306": {"M": 2, "N": 1}};
-const DEMO_BUDGET=[{"drop_type": "A2", "budget": 790.2, "sow_qty": 18}, {"drop_type": "B1", "budget": 441.0, "sow_qty": 18}, {"drop_type": "C", "budget": 21.8, "sow_qty": 20}, {"drop_type": "D", "budget": 533.9, "sow_qty": 36}, {"drop_type": "FL5", "budget": 68.7, "sow_qty": 2}, {"drop_type": "FL6", "budget": 82.8, "sow_qty": 6}, {"drop_type": "FL7", "budget": 176.0, "sow_qty": 4}, {"drop_type": "H", "budget": 274.3, "sow_qty": 24}, {"drop_type": "K1", "budget": 95.3, "sow_qty": 4}, {"drop_type": "L", "budget": 328.5, "sow_qty": 18}, {"drop_type": "L1", "budget": 219.0, "sow_qty": 12}, {"drop_type": "M", "budget": 293.4, "sow_qty": 12}, {"drop_type": "N", "budget": 363.0, "sow_qty": 6}, {"drop_type": "P", "budget": 320.7, "sow_qty": 11}, {"drop_type": "R1", "budget": 25.0, "sow_qty": 1}, {"drop_type": "S2", "budget": 206.7, "sow_qty": 4}, {"drop_type": "T2", "budget": 337.3, "sow_qty": 4}, {"drop_type": "V", "budget": 561.4, "sow_qty": 38}, {"drop_type": "W1", "budget": 195.0, "sow_qty": 6}, {"drop_type": "XX", "budget": 478.5, "sow_qty": 11}, {"drop_type": "Y2", "budget": 195.8, "sow_qty": 6}, {"drop_type": "Z", "budget": 372.0, "sow_qty": 60}];
-const DEMO_CREW=['Julian Calderon','Electrician 1','Electrician 2','Electrician 3','Electrician 4','Electrician 5'];
-const W=[0.65,0.3,0.05],credit2=s=>Math.round((W[0]*s[0]+W[1]*s[1]+W[2]*s[2])*100)/100;
-const DB={cells:{},entries:[]};
-for(const l in DEMO_SCOPE){DB.cells[l]={};for(const t in DEMO_SCOPE[l])DB.cells[l][t]={scope:DEMO_SCOPE[l][t],drops:Array.from({length:DEMO_SCOPE[l][t]},()=>[0,0,0])}}
-const sums=ds=>[ds.reduce((a,d)=>a+d[0],0),ds.filter(d=>d[0]>=4).length,ds.filter(d=>d[1]).length,ds.filter(d=>d[2]).length];
-const dcred=ds=>{const x=sums(ds);return Math.round((W[0]*x[0]/4+W[1]*x[2]+W[2]*x[3])*100)/100};
-const todayISO=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
-function dErr(code,message){const e=new Error(message);e.code=code;e.body={};return e}
-function entry(date,l,t,g){let e=DB.entries.find(x=>x.date===date&&x.loc===l&&x.type===t&&x.grp===g);
-  if(!e){e={date,loc:l,type:t,grp:g,crew:[],hrs:0,d:[0,0,0],dq:0,dd:0,by:NAME};DB.entries.push(e)}return e}
-function boardData(date){
-  const locs={};
-  for(const l in DB.cells)for(const t in DB.cells[l]){const c=DB.cells[l][t];
-    const x=sums(c.drops);(locs[l]=locs[l]||{})[t]={scope:c.scope,drops:c.drops.map(d=>d.slice()),s:x.slice(1),cq:x[0],dq:0,done:dcred(c.drops),crew:[],hrs:0,mh:0,mhTotal:0,d:[0,0,0],dropsToday:0,by:null,groups:[]}}
-  DB.entries.slice().sort((a,b)=>a.grp-b.grp).forEach(e=>{const t=locs[e.loc]&&locs[e.loc][e.type];if(!t)return;
-    const mh=Math.round(e.crew.length*e.hrs*100)/100;t.mhTotal+=mh;
-    if(e.date===date){if(e.crew.length){t.groups.push({g:e.grp,crew:e.crew.slice(),hrs:e.hrs,mh});t.crew=t.crew.concat(e.crew);if(!t.hrs)t.hrs=e.hrs;t.mh+=mh}
-      t.dropsToday=Math.round((t.dropsToday+e.dd)*100)/100;t.d=t.d.map((v,i)=>v+e.d[i]);t.dq+=e.dq||0;t.by=t.by||e.by}});
-  return {locs,steps:STEPS,weights:W,crewNames:DEMO_CREW,date,today:todayISO(),unsynced:0,fetchedAt:new Date().toISOString()};
-}
+const CODE_KEY='cullmanCrewCode',NAME_KEY='cullmanName';
+let CODE=store.get(CODE_KEY)||'',NAME=store.get(NAME_KEY)||'';
 async function api(action,extra){
-  extra=extra||{};const date=S.date||todayISO();
-  await new Promise(r=>setTimeout(r,60));
-  if(action==='read')return boardData(date);
-  if(action==='resync')return {result:{left:0},data:boardData(date)};
-  const l=extra.loc,t=extra.type,c=DB.cells[l]&&DB.cells[l][t];
-  if(!c)throw dErr('bad_input',locName(l)+' has no '+t+' drops.');
-  const where=t+' in '+locName(l);
-  if(action==='drops'){
-    const before=sums(c.drops),cb=dcred(c.drops);
-    extra.ns.forEach(n=>{const d=c.drops[n-1];if(extra.what==='pipe')d[0]=extra.q;else if(extra.what==='wire')d[1]=extra.on?1:0;else d[2]=extra.on?1:0});
-    const after=sums(c.drops),e=entry(date,l,t,0);
-    e.dq+=after[0]-before[0];for(let i=0;i<3;i++)e.d[i]+=after[i+1]-before[i+1];e.dd=Math.round((e.dd+dcred(c.drops)-cb)*100)/100;e.by=NAME;
-    return {result:{done:dcred(c.drops),scope:c.scope},data:boardData(date)};
-  }
-  if(action==='crew'){
-    const rows=DB.entries.filter(x=>x.date===date&&x.loc===l&&x.type===t);
-    const want=[...new Set(extra.crew||[])],hrs=Number(extra.hrs)||0;
-    let g;if(extra.group==='new'){const z=rows.find(x=>x.grp===0);g=(!z||!z.crew.length)?0:Math.max(...rows.map(x=>x.grp))+1}else g=Number(extra.group);
-    for(const r of rows){if(r.grp===g)continue;const clash=want.filter(p=>r.crew.includes(p));
-      if(clash.length)throw dErr('in_other_group',clash.join(', ')+(clash.length>1?' are':' is')+' already in another group on '+where+' that day. Change that group to move them.')}
-    const e=entry(date,l,t,g);e.crew=want;e.hrs=want.length?hrs:0;e.by=NAME;
-    return {result:{group:g,crew:want,hrs:e.hrs,mh:Math.round(want.length*e.hrs*100)/100,removed:!want.length},data:boardData(date)};
-  }
-  throw dErr('bad_action','Unknown action.');
-}
-function demoHours(){
-  const cells={},mh={},weekly={};
-  for(const l in DB.cells)for(const t in DB.cells[l]){const c=DB.cells[l][t],z=sums(c.drops),x=cells[t]=cells[t]||{drop_type:t,scope:0,s1:0,s2:0,s3:0};x.scope+=c.scope;x.s1+=z[0]/4;x.s2+=z[2];x.s3+=z[3]}
-  DB.entries.forEach(e=>{const m=e.crew.length*e.hrs;mh[e.type]=(mh[e.type]||0)+m;
-    const dt=new Date(e.date+'T12:00:00');dt.setDate(dt.getDate()-((dt.getDay()+6)%7));const wk=dt.toISOString().slice(0,10),k=wk+'|'+e.type;
-    const w=weekly[k]=weekly[k]||{wk,drop_type:e.type,mh:0,d1:0,d2:0,d3:0};w.mh+=m;w.d1+=(e.dq||0)/4;w.d2+=e.d[1];w.d3+=e.d[2]});
-  return {weights:W,cells:Object.values(cells),mh:Object.entries(mh).map(([drop_type,v])=>({drop_type,mh:v})),budget:DEMO_BUDGET.map(b=>Object.assign({description:DESC[b.drop_type]},b)),weekly:Object.values(weekly),clock:[],clockNotes:[],plan:null,prep:(()=>{
-    const wkOf=d=>{const dt=new Date(d+'T12:00:00');dt.setDate(dt.getDate()-((dt.getDay()+6)%7));return dt.toISOString().slice(0,10)};
-    const lg={},dw={},dt={};DB.prep.forEach(e=>{const k=wkOf(e.date);lg[k]=(lg[k]||0)+e.crew.length*e.hrs});
-    DB.entries.filter(e=>e.date>=PREP_START).forEach(e=>{const m=e.crew.length*e.hrs,k=wkOf(e.date);dw[k]=(dw[k]||0)+m;dt[e.type]=(dt[e.type]||0)+m});
-    return {pct:PREP_PCT,start:PREP_START,logged:Object.entries(lg).map(([wk,mh])=>({wk,mh})),dropWk:Object.entries(dw).map(([wk,mh])=>({wk,mh})),dropType:Object.entries(dt).map(([drop_type,mh])=>({drop_type,mh}))}})()};
+  const res=await fetch(CONFIG.url,{method:'POST',headers:{'Content-Type':'application/json',apikey:CONFIG.key},
+    body:JSON.stringify(Object.assign({action,code:CODE,name:NAME,date:S.date||undefined},extra||{}))});
+  let body=null;try{body=await res.json()}catch(e){}
+  if(!res.ok){const err=new Error((body&&body.message)||('The board’s server returned '+res.status+'.'));err.code=(body&&body.error)||('http_'+res.status);err.body=body||{};throw err}
+  return body;
 }
 function apply(d){S.data=d;S.date=d.date;S.stamp=Date.parse(d.fetchedAt)||Date.now();S.err=null;
   const wd=document.getElementById('wd');wd.max=d.today;wd.value=d.date;
@@ -606,7 +560,7 @@ function showGate(msg){gate.hidden=false;gateMsg.textContent=msg||'';gateMsg.hid
 document.getElementById('gate-form').addEventListener('submit',e=>{e.preventDefault();
   const n=document.getElementById('who').value.trim(),v=document.getElementById('code').value.trim();if(!n||!v)return;
   NAME=n;CODE=v;store.set(NAME_KEY,n);store.set(CODE_KEY,v);gateMsg.hidden=true;load()});
-document.getElementById('signout').addEventListener('click',()=>{const n=prompt('Your name for this demo',NAME);if(n){NAME=n.trim()||NAME;store.set(NAME_KEY,NAME)}});document.getElementById('signout').textContent='Change name';
+document.getElementById('signout').addEventListener('click',()=>{CODE='';store.del(CODE_KEY);S.data=null;render();showGate()});
 document.getElementById('wd').addEventListener('change',e=>{const v=e.target.value;if(!v)return;S.date=v;S.open=null;S.msg='';S.conflict=null;load()});
 
 // ---------- quick steps: show the click at once, save in order behind the scenes ----------
@@ -615,16 +569,36 @@ let stepQueue=Promise.resolve(),stepsPending=0;
 function dropClick(t,l,what,val){
   const c=types(l)[t];if(!c)return;
   const ns=pickOf(t,l).slice();if(!ns.length)return;
-  const old=ns.map(n=>(c.drops[n-1]||[0,0,0]));
+  const ds=(c.drops||[]).map(d=>d.slice()),old=ns.map(n=>ds[n-1]||[0,0,0]);
   if(what==='pipe'&&val<4&&old.some(d=>d[1]))return;
   if(what==='wire'&&val&&old.some(d=>d[0]<4))return;
   if(what==='wire'&&!val&&old.some(d=>d[2]))return;
   if(what==='term'&&val&&old.some(d=>!d[1]))return;
+  const sum=a=>[a.reduce((x,d)=>x+d[0],0),a.filter(d=>d[0]>=4).length,a.filter(d=>d[1]).length,a.filter(d=>d[2]).length];
+  const before=sum(ds),doneBefore=c.done;
+  ns.forEach(n=>{const d=ds[n-1]=(ds[n-1]||[0,0,0]).slice();if(what==='pipe')d[0]=val;else if(what==='wire')d[1]=val?1:0;else d[2]=val?1:0});
+  const after=sum(ds);
+  c.drops=ds;c.cq=after[0];c.s=after.slice(1);c.done=Math.round((0.65*after[0]/4+0.3*after[2]+0.05*after[3])*100)/100;
+  c.dq=(c.dq||0)+after[0]-before[0];c.d=(c.d||[0,0,0]).map((x,i)=>x+after[i+1]-before[i+1]);c.dropsToday=Math.round(((c.dropsToday||0)+c.done-doneBefore)*100)/100;
   S.pick=null;
   const word=what==='pipe'?'pipe '+QW[val].toLowerCase():(val?'':'took off ')+(what==='wire'?'wire pulled':'terminated');
-  api('drops',{type:t,loc:l,ns,what,q:val,on:!!val}).then(r=>{apply(r.data);S.msg=t+' '+ns.map(n=>'#'+n).join(', ')+' on '+locName(l)+': '+word+'. Now '+fmt(r.result.done)+' of '+r.result.scope+' done.';S.msgBad=false;render()})
-    .catch(e=>{S.msg='Not saved: '+e.message;S.msgBad=true;render()});
+  stepsPending++;S.msg='Saving…';S.msgBad=false;render();
+  const payload={type:t,loc:l,ns,what},nm=locName(l);if(what==='pipe')payload.q=val;else payload.on=!!val;
+  stepQueue=stepQueue.then(async()=>{
+    try{
+      const r=await api('drops',payload);stepsPending--;
+      if(!stepsPending){apply(r.data);S.msg=t+' '+ns.map(n=>'#'+n).join(', ')+' on '+nm+': '+word+'. Now '+fmt(r.result.done)+' of '+r.result.scope+' done. Saved.';S.msgBad=false}
+    }catch(e){
+      stepsPending--;S.msgBad=true;
+      if(e.code==='wrong_code'){CODE='';store.del(CODE_KEY);showGate('The crew code changed. Enter the new one.');S.msg='Not saved.'}
+      else if(e instanceof TypeError)S.msg='Lost connection while saving. The board is reloading to show what was saved.';
+      else S.msg='Not saved: '+e.message+' The board reloaded to show the current numbers.';
+      if(!stepsPending){const m=S.msg;await load();S.msg=m;S.msgBad=true}
+    }
+    render();
+  });
 }
+
 let loading=false;
 async function load(){
   if(!CODE||!NAME){showGate();return}
@@ -732,18 +706,15 @@ document.getElementById('side').addEventListener('click',e=>{const b=e.target.cl
 
 
 // ---------- Prep / staging (proof of concept) ----------
-// Bulk prep hours not tied to a cell. Demo: kept in this page only (the live Buckeye board saves to buckeye-prep-api / el2_prep).
-const PREP={data:null,pick:[],busy:false};
-const PREP_PCT=0.05,PREP_START=(()=>{const d=new Date(todayISO()+'T12:00:00');d.setDate(d.getDate()-60);return d.toISOString().slice(0,10)})();
-DB.prep=[];let prepId=0;
+// Bulk prep hours not tied to a cell: buckeye-prep-api (table el2_prep). Allowance % and start date: Supabase → el_plan (prep_pct, prep_start).
+const PREP={data:null,pick:[],types:[],busy:false};
+CONFIG.prepUrl='https://vbfspyruvaoqmhuutphl.supabase.co/functions/v1/buckeye-prep-api';
 async function prepApi(action,extra){
-  extra=extra||{};const date=S.date||todayISO();await new Promise(r=>setTimeout(r,60));
-  if(action==='add'){if(!extra.crew||!extra.crew.length)throw dErr('bad_input','Pick at least one person.');DB.prep.push({id:++prepId,date,crew:[...new Set(extra.crew)],hrs:Number(extra.hrs),by:NAME})}
-  else if(action==='delete'){DB.prep=DB.prep.filter(e=>e.id!==extra.id)}
-  const day=DB.prep.filter(e=>e.date===date),prep=DB.prep.reduce((x,e)=>x+e.crew.length*e.hrs,0);
-  const drops=DB.entries.filter(e=>e.date>=PREP_START).reduce((x,e)=>x+e.crew.length*e.hrs,0),allowed=drops*PREP_PCT;
-  return {date,today:todayISO(),entries:day.map(e=>({id:e.id,crew:e.crew,hrs:e.hrs,mh:e.crew.length*e.hrs,by:e.by})),dayMh:day.reduce((x,e)=>x+e.crew.length*e.hrs,0),
-    toDate:{prep,drops,pct:PREP_PCT,allowed,aheadOver:prep-allowed}};
+  const res=await fetch(CONFIG.prepUrl,{method:'POST',headers:{'Content-Type':'application/json',apikey:CONFIG.key},
+    body:JSON.stringify(Object.assign({action,site:'cullman',code:CODE,name:NAME,date:S.date||undefined},extra||{}))});
+  let body=null;try{body=await res.json()}catch(e){}
+  if(!res.ok){const err=new Error((body&&body.message)||('The prep server returned '+res.status+'.'));err.code=body&&body.error;throw err}
+  return body;
 }
 async function loadPrep(){
   if(!CODE||!NAME)return;
@@ -757,24 +728,33 @@ function renderPrep(){
   document.getElementById('prep-sum').textContent=c?c+(c>1?' people':' person')+' × '+r1(h)+' h':'Pick who prepped';
   document.getElementById('prep-tot').textContent=c&&h>0?r1(c*h)+' prep h':'';
   document.getElementById('prep-save').disabled=PREP.busy||!c||!(h>0);
+  const tl=prepTypeList();
+  document.getElementById('prep-types').innerHTML=tl.map(t=>'<button type="button" class="cr'+(PREP.types.includes(t)?' on':'')+'" data-t="'+esc(t)+'" aria-pressed="'+PREP.types.includes(t)+'" title="'+esc(DESC[t]||'')+'">'+esc(t)+'</button>').join('')+
+    (PREP.types.length?'<button type="button" class="lnk" data-t="">Clear</button>':'');
+  document.getElementById('prep-tnote').textContent=PREP.types.length?'Hours split across '+PREP.types.join(', ')+' by their drop count.':'None picked = general prep, not tied to a drop type.';
   const d=PREP.data;
   document.getElementById('prep-dayh').textContent='Prep logged '+dayWord()+(d?' · '+r1(d.dayMh)+' MH':'');
   document.getElementById('prep-list').innerHTML=d&&d.entries.length?d.entries.map(e=>
-    '<div class="grp" style="--gc:#0F8A8A"><div class="who"><b>'+e.crew.length+' × '+r1(e.hrs)+' h = '+r1(e.mh)+' h</b>'+esc(e.crew.join(', '))+(e.by?' <span class="msg">· '+esc(e.by)+'</span>':'')+'</div><button class="btn sm" type="button" data-del="'+e.id+'">Remove</button></div>').join(''):'<p class="msg">None yet.</p>';
+    '<div class="grp" style="--gc:#0F8A8A"><div class="who"><b>'+e.crew.length+' × '+r1(e.hrs)+' h = '+r1(e.mh)+' h</b>'+esc(e.crew.join(', '))+' · '+(e.types&&e.types.length?esc(e.types.join(', ')):'general')+(e.by?' <span class="msg">· '+esc(e.by)+'</span>':'')+'</div><button class="btn sm" type="button" data-del="'+e.id+'">Remove</button></div>').join(''):'<p class="msg">None yet.</p>';
 }
-function openPrep(){if(!S.data)return;PREP.pick=[];document.getElementById('prep-msg').textContent='';document.getElementById('prep-ov').hidden=false;renderPrep();loadPrep();setTimeout(()=>document.getElementById('prep-close').focus(),30)}
+// drop types on this board, in the board's usual order
+function prepTypeList(){const have=new Set();if(S.data)for(const l in S.data.locs)for(const t in S.data.locs[l])if(S.data.locs[l][t].scope>0)have.add(t);
+  return ORDER.filter(t=>have.has(t)).concat([...have].filter(t=>!ORDER.includes(t)).sort())}
+function openPrep(){if(!S.data)return;PREP.pick=[];PREP.types=[];document.getElementById('prep-msg').textContent='';document.getElementById('prep-ov').hidden=false;renderPrep();loadPrep();setTimeout(()=>document.getElementById('prep-close').focus(),30)}
 function closePrep(){document.getElementById('prep-ov').hidden=true;document.getElementById('prep-open').focus()}
 document.getElementById('prep-open').addEventListener('click',openPrep);
 document.getElementById('prep-close').addEventListener('click',closePrep);
 document.getElementById('prep-ov').addEventListener('click',e=>{if(e.target.id==='prep-ov')closePrep()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.getElementById('prep-ov').hidden)closePrep()});
 document.getElementById('prep-hrs').addEventListener('input',renderPrep);
+document.getElementById('prep-types').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(!b)return;const t=b.dataset.t;
+  PREP.types=!t?[]:PREP.types.includes(t)?PREP.types.filter(x=>x!==t):PREP.types.concat(t);renderPrep()});
 document.getElementById('prep-crew').addEventListener('click',e=>{const b=e.target.closest('[data-n]');if(!b)return;const n=b.dataset.n;
   PREP.pick=PREP.pick.includes(n)?PREP.pick.filter(x=>x!==n):PREP.pick.concat(n);renderPrep()});
 document.getElementById('prep-save').addEventListener('click',async()=>{
   const h=num(document.getElementById('prep-hrs').value),m=document.getElementById('prep-msg');
   if(!PREP.pick.length||!(h>0)||PREP.busy)return;PREP.busy=true;m.className='msg';m.textContent='Saving…';renderPrep();
-  try{PREP.data=await prepApi('add',{crew:PREP.pick,hrs:h});m.textContent='Saved '+r1(PREP.pick.length*h)+' prep hours.';PREP.pick=[]}
+  try{PREP.data=await prepApi('add',{crew:PREP.pick,hrs:h,types:PREP.types});m.textContent='Saved '+r1(PREP.pick.length*h)+' prep hours'+(PREP.types.length?' for '+PREP.types.join(', '):' (general)')+'.';PREP.pick=[];PREP.types=[]}
   catch(e){m.className='msg bad';m.textContent='Not saved: '+e.message}
   PREP.busy=false;renderPrep();renderKpis();if(H)loadHours();
 });
@@ -818,7 +798,10 @@ async function loadHours(){
   if(hLoading)return;hLoading=true;
   if(!H)msg.textContent='Loading hours…';
   try{
-    const body=demoHours();
+    const res=await fetch(CONFIG.hoursUrl,{method:'POST',headers:{'Content-Type':'application/json',apikey:CONFIG.key},body:JSON.stringify({site:'cullman',code:CODE})});
+    let body=null;try{body=await res.json()}catch(e){}
+    if(res.status===401){CODE='';store.del(CODE_KEY);showGate('That crew code isn’t right. Ask your site lead for it.');hLoading=false;return}
+    if(!res.ok)throw new Error((body&&body.message)||('The hours server returned '+res.status+'.'));
     H=body;msg.textContent='';
     try{await loadChartLib()}catch(e){msg.textContent='The chart couldn’t load. The numbers below are still current.'}
     renderHours();
@@ -903,11 +886,18 @@ function renderHours(){
       '<div class="kpi"><span class="l">Prep logged</span><span class="v">'+fmtH(prepLogged)+' h</span><span class="s">helpers, not tied to a cell</span></div>'+
       '<div class="kpi"><span class="l">Charged to drop types</span><span class="v">'+fmtH(prepAllowed)+' h</span><span class="s">'+Math.round(PCT*1000)/10+'% × '+fmtH(PP.dropType.reduce((x,d)=>x+(d.mh||0),0))+' drop h</span></div>'+
       '<div class="kpi" style="border-left:4px solid var(--'+(prepAO>0.5?'bad':'ok')+')"><span class="l">Prep ahead/over</span><span class="v '+aoC+'">'+(prepAO>0?'+':'')+fmtH(prepAO)+' h</span><span class="s">'+(prepAO>0.5?'prepped ahead of install, or over the allowance':prepAO<-0.5?'under the allowance':'even')+'</span></div>';
-    document.getElementById('hv-prep-how').textContent='Each drop type carries '+Math.round(PCT*1000)/10+'% of its drop hours for prep; that share is set when the hours are logged and doesn’t move later. Prep logged above that sits in Prep ahead/over: it goes up when helpers prep or stage ahead and comes back down as crews work drops. If it keeps climbing once all drop types are underway, the allowance is too low. Allowance and start date: Supabase → Table Editor → el_plan (prep_pct, prep_start).';
+    document.getElementById('hv-prep-how').textContent='Each drop type carries '+Math.round(PCT*1000)/10+'% of its drop hours for prep; that share is set when the hours are logged and doesn’t move later. Prep logged above that sits in Prep ahead/over: it goes up when helpers prep or stage ahead and comes back down as crews work drops. If it keeps climbing once all drop types are underway, the allowance is too low. Prep tagged with drop types is split across them by drop count, so each type shows its own ahead/over: plus means prep done ahead for that type, minus means its drops have used more allowance than was prepped for them (covered by general prep). Allowance and start date: Supabase → Table Editor → el_plan (prep_pct, prep_start).';
     const dw=Object.fromEntries(PP.dropWk.map(w=>[w.wk,w.mh||0]));
     const pw=[...new Set([...PP.dropWk.map(w=>w.wk),...PP.logged.map(w=>w.wk)])].sort();let run=0;
     const tr=pw.map(wk=>{const d=dw[wk]||0,l=prepWk[wk]||0,a=d*PCT,ao=l-a;run+=ao;
       return '<tr><td>'+wkLabel(wk)+'</td><td>'+fmtH(d)+'</td><td class="tg-prep">'+fmtH(l)+'</td><td>'+fmtH(a)+'</td><td class="'+(ao>0.5?'tg-bad':'tg-ok')+'">'+(ao>0?'+':'')+fmtH(ao)+'</td><td class="'+(run>0.5?'tg-bad':'tg-ok')+'">'+(run>0?'+':'')+fmtH(run)+'</td></tr>'});
+    const tg=Object.fromEntries((PP.tagged||[]).map(x=>[x.drop_type,x.mh||0])),tagTot=Object.values(tg).reduce((x,v)=>x+v,0),pool=prepLogged-tagTot;
+    const tt=[...new Set([...Object.keys(tg),...Object.keys(allow)])].filter(t=>(tg[t]||0)>=0.05||(allow[t]||0)>=0.05).sort((a,b)=>((tg[b]||0)-(allow[b]||0))-((tg[a]||0)-(allow[a]||0)));
+    const aoT=v=>v>0.5?'tg-bad':'tg-ok',sg=v=>(v>0?'+':'')+r1(v);
+    document.querySelector('#hv-prep-types tbody').innerHTML=tt.map(t=>{const a=allow[t]||0,g=tg[t]||0;
+      return '<tr><td>'+esc(t)+' <small>'+esc(DESC[t]||'')+'</small></td><td class="tg-prep">'+r1(g)+'</td><td>'+r1(a)+'</td><td class="'+aoT(g-a)+'">'+sg(g-a)+'</td></tr>'}).join('')+
+      (pool>=0.05||!tt.length?'<tr><td>General (not tagged)</td><td class="tg-prep">'+r1(pool)+'</td><td>–</td><td class="'+aoT(pool)+'">'+sg(pool)+'</td></tr>':'')+
+      '<tr><td><b>Total</b></td><td><b>'+r1(prepLogged)+'</b></td><td><b>'+r1(prepAllowed)+'</b></td><td class="'+aoT(prepAO)+'"><b>'+sg(prepAO)+'</b></td></tr>';
     document.querySelector('#hv-prep-tbl tbody').innerHTML=tr.reverse().join('')||'<tr><td colspan="6" style="text-align:left">Nothing logged since '+wkLabel(PP.start)+' yet.</td></tr>';
   }
   // manual time clock adjustments (Supabase → Table Editor → el_clock_adj)
