@@ -334,7 +334,6 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
         <h2 id="hv-hp">Prep ahead/over</h2>
         <div class="kpis" id="hv-prep-kpis"></div>
         <p class="how" id="hv-prep-how"></p>
-        <div class="tw"><table class="hv-tbl" id="hv-prep-types"><thead><tr><th>Drop type</th><th>Prep tagged</th><th>Charged to it</th><th>Prep ahead/over</th></tr></thead><tbody></tbody></table></div>
         <div class="tw"><table class="hv-tbl" id="hv-prep-tbl"><thead><tr><th>Week of</th><th>Drop hours</th><th>Prep logged</th><th>Prep allowed</th><th>Prep ahead/over</th><th>Running ahead/over</th></tr></thead><tbody></tbody></table></div>
       </section>
 
@@ -361,9 +360,6 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
       <div class="lab">Who prepped</div>
       <div class="crew" id="prep-crew"></div>
       <div class="hrs"><label for="prep-hrs">Hours each</label><input id="prep-hrs" type="number" inputmode="decimal" min="0" max="24" step="0.5" value="8"></div>
-      <div class="lab">For which drop types <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional · pick all that apply)</span></div>
-      <div class="crew" id="prep-types"></div>
-      <p class="msg" id="prep-tnote" style="margin:0"></p>
       <div class="gtot"><span id="prep-sum">Pick who prepped</span><span id="prep-tot"></span></div>
       <div class="acts"><button class="btn primary" id="prep-save" type="button">Save prep</button><button class="btn" id="prep-close" type="button">Close</button></div>
       <p class="msg" id="prep-msg" role="status"></p>
@@ -707,7 +703,7 @@ document.getElementById('side').addEventListener('click',e=>{const b=e.target.cl
 
 // ---------- Prep / staging (proof of concept) ----------
 // Bulk prep hours not tied to a cell: buckeye-prep-api (table el2_prep). Allowance % and start date: Supabase → el_plan (prep_pct, prep_start).
-const PREP={data:null,pick:[],types:[],busy:false};
+const PREP={data:null,pick:[],busy:false};
 CONFIG.prepUrl='https://vbfspyruvaoqmhuutphl.supabase.co/functions/v1/buckeye-prep-api';
 async function prepApi(action,extra){
   const res=await fetch(CONFIG.prepUrl,{method:'POST',headers:{'Content-Type':'application/json',apikey:CONFIG.key},
@@ -728,33 +724,24 @@ function renderPrep(){
   document.getElementById('prep-sum').textContent=c?c+(c>1?' people':' person')+' × '+r1(h)+' h':'Pick who prepped';
   document.getElementById('prep-tot').textContent=c&&h>0?r1(c*h)+' prep h':'';
   document.getElementById('prep-save').disabled=PREP.busy||!c||!(h>0);
-  const tl=prepTypeList();
-  document.getElementById('prep-types').innerHTML=tl.map(t=>'<button type="button" class="cr'+(PREP.types.includes(t)?' on':'')+'" data-t="'+esc(t)+'" aria-pressed="'+PREP.types.includes(t)+'" title="'+esc(DESC[t]||'')+'">'+esc(t)+'</button>').join('')+
-    (PREP.types.length?'<button type="button" class="lnk" data-t="">Clear</button>':'');
-  document.getElementById('prep-tnote').textContent=PREP.types.length?'Hours split across '+PREP.types.join(', ')+' by their drop count.':'None picked = general prep, not tied to a drop type.';
   const d=PREP.data;
   document.getElementById('prep-dayh').textContent='Prep logged '+dayWord()+(d?' · '+r1(d.dayMh)+' MH':'');
   document.getElementById('prep-list').innerHTML=d&&d.entries.length?d.entries.map(e=>
-    '<div class="grp" style="--gc:#0F8A8A"><div class="who"><b>'+e.crew.length+' × '+r1(e.hrs)+' h = '+r1(e.mh)+' h</b>'+esc(e.crew.join(', '))+' · '+(e.types&&e.types.length?esc(e.types.join(', ')):'general')+(e.by?' <span class="msg">· '+esc(e.by)+'</span>':'')+'</div><button class="btn sm" type="button" data-del="'+e.id+'">Remove</button></div>').join(''):'<p class="msg">None yet.</p>';
+    '<div class="grp" style="--gc:#0F8A8A"><div class="who"><b>'+e.crew.length+' × '+r1(e.hrs)+' h = '+r1(e.mh)+' h</b>'+esc(e.crew.join(', '))+(e.by?' <span class="msg">· '+esc(e.by)+'</span>':'')+'</div><button class="btn sm" type="button" data-del="'+e.id+'">Remove</button></div>').join(''):'<p class="msg">None yet.</p>';
 }
-// drop types on this board, in the board's usual order
-function prepTypeList(){const have=new Set();if(S.data)for(const l in S.data.locs)for(const t in S.data.locs[l])if(S.data.locs[l][t].scope>0)have.add(t);
-  return ORDER.filter(t=>have.has(t)).concat([...have].filter(t=>!ORDER.includes(t)).sort())}
-function openPrep(){if(!S.data)return;PREP.pick=[];PREP.types=[];document.getElementById('prep-msg').textContent='';document.getElementById('prep-ov').hidden=false;renderPrep();loadPrep();setTimeout(()=>document.getElementById('prep-close').focus(),30)}
+function openPrep(){if(!S.data)return;PREP.pick=[];document.getElementById('prep-msg').textContent='';document.getElementById('prep-ov').hidden=false;renderPrep();loadPrep();setTimeout(()=>document.getElementById('prep-close').focus(),30)}
 function closePrep(){document.getElementById('prep-ov').hidden=true;document.getElementById('prep-open').focus()}
 document.getElementById('prep-open').addEventListener('click',openPrep);
 document.getElementById('prep-close').addEventListener('click',closePrep);
 document.getElementById('prep-ov').addEventListener('click',e=>{if(e.target.id==='prep-ov')closePrep()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.getElementById('prep-ov').hidden)closePrep()});
 document.getElementById('prep-hrs').addEventListener('input',renderPrep);
-document.getElementById('prep-types').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(!b)return;const t=b.dataset.t;
-  PREP.types=!t?[]:PREP.types.includes(t)?PREP.types.filter(x=>x!==t):PREP.types.concat(t);renderPrep()});
 document.getElementById('prep-crew').addEventListener('click',e=>{const b=e.target.closest('[data-n]');if(!b)return;const n=b.dataset.n;
   PREP.pick=PREP.pick.includes(n)?PREP.pick.filter(x=>x!==n):PREP.pick.concat(n);renderPrep()});
 document.getElementById('prep-save').addEventListener('click',async()=>{
   const h=num(document.getElementById('prep-hrs').value),m=document.getElementById('prep-msg');
   if(!PREP.pick.length||!(h>0)||PREP.busy)return;PREP.busy=true;m.className='msg';m.textContent='Saving…';renderPrep();
-  try{PREP.data=await prepApi('add',{crew:PREP.pick,hrs:h,types:PREP.types});m.textContent='Saved '+r1(PREP.pick.length*h)+' prep hours'+(PREP.types.length?' for '+PREP.types.join(', '):' (general)')+'.';PREP.pick=[];PREP.types=[]}
+  try{PREP.data=await prepApi('add',{crew:PREP.pick,hrs:h});m.textContent='Saved '+r1(PREP.pick.length*h)+' prep hours.';PREP.pick=[]}
   catch(e){m.className='msg bad';m.textContent='Not saved: '+e.message}
   PREP.busy=false;renderPrep();renderKpis();if(H)loadHours();
 });
@@ -886,18 +873,11 @@ function renderHours(){
       '<div class="kpi"><span class="l">Prep logged</span><span class="v">'+fmtH(prepLogged)+' h</span><span class="s">helpers, not tied to a cell</span></div>'+
       '<div class="kpi"><span class="l">Charged to drop types</span><span class="v">'+fmtH(prepAllowed)+' h</span><span class="s">'+Math.round(PCT*1000)/10+'% × '+fmtH(PP.dropType.reduce((x,d)=>x+(d.mh||0),0))+' drop h</span></div>'+
       '<div class="kpi" style="border-left:4px solid var(--'+(prepAO>0.5?'bad':'ok')+')"><span class="l">Prep ahead/over</span><span class="v '+aoC+'">'+(prepAO>0?'+':'')+fmtH(prepAO)+' h</span><span class="s">'+(prepAO>0.5?'prepped ahead of install, or over the allowance':prepAO<-0.5?'under the allowance':'even')+'</span></div>';
-    document.getElementById('hv-prep-how').textContent='Each drop type carries '+Math.round(PCT*1000)/10+'% of its drop hours for prep; that share is set when the hours are logged and doesn’t move later. Prep logged above that sits in Prep ahead/over: it goes up when helpers prep or stage ahead and comes back down as crews work drops. If it keeps climbing once all drop types are underway, the allowance is too low. Prep tagged with drop types is split across them by drop count, so each type shows its own ahead/over: plus means prep done ahead for that type, minus means its drops have used more allowance than was prepped for them (covered by general prep). Allowance and start date: Supabase → Table Editor → el_plan (prep_pct, prep_start).';
+    document.getElementById('hv-prep-how').textContent='Each drop type carries '+Math.round(PCT*1000)/10+'% of its drop hours for prep; that share is set when the hours are logged and doesn’t move later. Prep logged above that sits in Prep ahead/over: it goes up when helpers prep or stage ahead and comes back down as crews work drops. If it keeps climbing once all drop types are underway, the allowance is too low. Allowance and start date: Supabase → Table Editor → el_plan (prep_pct, prep_start).';
     const dw=Object.fromEntries(PP.dropWk.map(w=>[w.wk,w.mh||0]));
     const pw=[...new Set([...PP.dropWk.map(w=>w.wk),...PP.logged.map(w=>w.wk)])].sort();let run=0;
     const tr=pw.map(wk=>{const d=dw[wk]||0,l=prepWk[wk]||0,a=d*PCT,ao=l-a;run+=ao;
       return '<tr><td>'+wkLabel(wk)+'</td><td>'+fmtH(d)+'</td><td class="tg-prep">'+fmtH(l)+'</td><td>'+fmtH(a)+'</td><td class="'+(ao>0.5?'tg-bad':'tg-ok')+'">'+(ao>0?'+':'')+fmtH(ao)+'</td><td class="'+(run>0.5?'tg-bad':'tg-ok')+'">'+(run>0?'+':'')+fmtH(run)+'</td></tr>'});
-    const tg=Object.fromEntries((PP.tagged||[]).map(x=>[x.drop_type,x.mh||0])),tagTot=Object.values(tg).reduce((x,v)=>x+v,0),pool=prepLogged-tagTot;
-    const tt=[...new Set([...Object.keys(tg),...Object.keys(allow)])].filter(t=>(tg[t]||0)>=0.05||(allow[t]||0)>=0.05).sort((a,b)=>((tg[b]||0)-(allow[b]||0))-((tg[a]||0)-(allow[a]||0)));
-    const aoT=v=>v>0.5?'tg-bad':'tg-ok',sg=v=>(v>0?'+':'')+r1(v);
-    document.querySelector('#hv-prep-types tbody').innerHTML=tt.map(t=>{const a=allow[t]||0,g=tg[t]||0;
-      return '<tr><td>'+esc(t)+' <small>'+esc(DESC[t]||'')+'</small></td><td class="tg-prep">'+r1(g)+'</td><td>'+r1(a)+'</td><td class="'+aoT(g-a)+'">'+sg(g-a)+'</td></tr>'}).join('')+
-      (pool>=0.05||!tt.length?'<tr><td>General (not tagged)</td><td class="tg-prep">'+r1(pool)+'</td><td>–</td><td class="'+aoT(pool)+'">'+sg(pool)+'</td></tr>':'')+
-      '<tr><td><b>Total</b></td><td><b>'+r1(prepLogged)+'</b></td><td><b>'+r1(prepAllowed)+'</b></td><td class="'+aoT(prepAO)+'"><b>'+sg(prepAO)+'</b></td></tr>';
     document.querySelector('#hv-prep-tbl tbody').innerHTML=tr.reverse().join('')||'<tr><td colspan="6" style="text-align:left">Nothing logged since '+wkLabel(PP.start)+' yet.</td></tr>';
   }
   // manual time clock adjustments (Supabase → Table Editor → el_clock_adj)
